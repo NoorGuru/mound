@@ -40,6 +40,7 @@ import {
 } from "./settings-scoped-server";
 import { PullRequestGlyph } from "../pull-requests/pullRequestGlyphs";
 import { AutoSettleSettingsRows } from "./ThreadSettingsSections";
+import { supportsSharedSettingsSync } from "@t3tools/client-runtime/state/shared-settings";
 
 type SettingsPage = "threads" | "source-control" | "worktrees" | "maintenance";
 
@@ -128,6 +129,32 @@ const STREAMING_CHOICES: ReadonlyArray<{
   },
 ];
 
+// Only servers with thread auto-settlement store these, so other targets get the rest of a patch.
+const AUTO_SETTLE_SETTING_KEYS: ReadonlySet<string> = new Set([
+  "sidebarAutoSettleOnMerge",
+  "sidebarAutoSettleAfterDays",
+  "autoResumeLimitedThreads",
+  "snoozeLimitedThreads",
+]);
+
+function planServerSettingsWrites(
+  targets: readonly ScopedMobileSettingsTarget[],
+  projectSelected: boolean,
+  patch: ServerSettingsPatch,
+) {
+  const capable = targets.filter((target) => supportsSharedSettingsSync(target.environment));
+  const others = targets.filter((target) => !supportsSharedSettingsSync(target.environment));
+  const othersPatch = Object.fromEntries(
+    Object.entries(patch).filter(([key]) => !AUTO_SETTLE_SETTING_KEYS.has(key)),
+  ) as ServerSettingsPatch;
+  return [
+    ...planMobileScopedSettingsPatch(capable, projectSelected, patch),
+    ...(Object.keys(othersPatch).length > 0
+      ? planMobileScopedSettingsPatch(others, projectSelected, othersPatch)
+      : []),
+  ];
+}
+
 export function SettingsThreadsRouteScreen() {
   return <ServerSettingsDetail page="threads" />;
 }
@@ -194,7 +221,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
       )
     )
       return;
-    const writes = planMobileScopedSettingsPatch(targets, projectSelected, patch);
+    const writes = planServerSettingsWrites(targets, projectSelected, patch);
     if (writes.length === 0) return;
     writeInFlight.current = true;
     setPendingTargets(targets);
@@ -362,7 +389,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                       onValueChange={(value) => write({ enableAgentBrowserAccess: value })}
                     />
                   </SettingsSection>
-                  <AutoSettleSettingsRows />
+                  <AutoSettleSettingsRows write={write} pending={pendingWrites > 0} />
                 </>
               ) : null}
 

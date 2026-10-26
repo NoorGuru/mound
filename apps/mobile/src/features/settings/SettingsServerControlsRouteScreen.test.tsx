@@ -125,7 +125,10 @@ vi.mock("./settings-environment-filter", () => ({
   }),
 }));
 
-import { SettingsWorktreesRouteScreen } from "./SettingsServerControlsRouteScreen";
+import {
+  SettingsThreadsRouteScreen,
+  SettingsWorktreesRouteScreen,
+} from "./SettingsServerControlsRouteScreen";
 
 function environment(environmentId: string, label: string) {
   return {
@@ -182,5 +185,23 @@ describe("SettingsServerControlsRouteScreen", () => {
         patch: { branchNamingMode: "custom", branchNameInstructions: "Use issue IDs." },
       },
     });
+  });
+
+  it("holds auto-settle changes until a pending project override write settles", async () => {
+    mocks.projectSelected = true;
+    const pending = Promise.withResolvers<AsyncResult.Success<void>>();
+    mocks.updateSettings.mockReturnValueOnce(pending.promise);
+    act(() => root.render(<SettingsThreadsRouteScreen />));
+    const toggle = (label: string) =>
+      [...container.querySelectorAll<HTMLButtonElement>('[role="switch"]')].find(
+        (button) => button.textContent === label,
+      )!;
+
+    act(() => toggle("Agent browser access").click());
+    act(() => toggle("Auto-settle merged threads").click());
+
+    // Both rewrite the whole project override, so a second write planned now would drop the first.
+    expect(mocks.updateSettings).toHaveBeenCalledOnce();
+    await act(async () => pending.resolve(AsyncResult.success(undefined)));
   });
 });
