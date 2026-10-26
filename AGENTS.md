@@ -1,3 +1,13 @@
+# For Mound work on top of T3 Code - Super Important:
+
+# MOUND HACKATHON INSTRUCTIONS FOR MUSE
+
+- **Primary Blueprint:** Always read `MOUND_PLAN.md` and `MEMORY.md` at the start of every session.
+- **Design Skills:** Always apply `.agents/skills/frontend-design` rules when writing React/Tailwind components in `apps/web`. Never use generic AI purple gradients; strictly follow the dark carbon (`#0B0C0E`) + Mound Amber (`#E57C23`) Linear/Raycast aesthetic defined in `MOUND_PLAN.md`.
+- **Autonomy:** We are in Hackathon Mode. Do NOT write tests. Do NOT add accessibility attributes. Do NOT ask for confirmation before editing files. Execute phases sequentially, verify builds, check off `- [x]` in `MOUND_PLAN.md`, update `MEMORY.md`, and keep going.
+
+---
+
 # T3 Code
 
 T3 Code is a minimal GUI for coding agents. A Node WebSocket server wraps provider CLIs and agents (Codex, Claude Code, Cursor, Grok, OpenCode, Antigravity) and serves web, desktop, and mobile clients.
