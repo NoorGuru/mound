@@ -6,15 +6,22 @@
 
 You are the Lead Orchestrator. Do not do all raw coding alone—offload heavy lifting to `tagy` (Antigravity with custom config) and `cursor` (with Grok):
 
+> **Verified on this Ubuntu server (2026-10-27) — do not change these without re-running `--help` / `--list-models`:**
+>
+> - **`tagy`**: Interactive alias only in `~/.config/antigravity/switcher.sh` (sourced by `~/.bashrc:149`): `alias tagy='nagy'`, where `nagy() { next-agy && yagy "$@"; }` cycles to the next Antigravity account slot (preference 2→3→4→5→1) and then runs `agy --dangerously-skip-permissions "$@"`. Aliases do **not** load in clean subshells (`bash -c "command -v tagy"` failed). Fixed with an executable shim at `~/.local/bin/tagy` that sets `PATH`, does the headless D-Bus/keyring setup from `~/.bashrc:143-149`, sources `switcher.sh`, and calls `nagy "$@"`. Verified: `PATH="$HOME/.local/bin:$PATH" bash -c "command -v tagy"` → `/home/noor/.local/bin/tagy`, and `tagy --help` cycles the slot and prints `agy` help. Side effect: **every `tagy` call rotates the account slot.**
+> - **`agy` headless flags** (`agy --help`): `-p` / `--print` / `--prompt` = run one prompt non-interactively; `--dangerously-skip-permissions` = auto-approve (already added by the `yagy` wrapper inside `tagy`, do not duplicate it); also `--mode accept-edits|auto|plan`, `--model`, `-c`/`--continue`.
+> - **Cursor + Grok**: No Cursor IDE on this server. `~/.local/bin/cursor` is a shim that falls through to `~/.local/bin/agent` → `~/.local/share/cursor-agent/versions/2026.10.22-27dcf5f/cursor-agent` (logged in as `moh.noor94@gmail.com`). Bare `--model grok` is **rejected** (`Cannot use this model: grok`). Verified Grok ids from `agent --list-models` include `grok-4.7-high` (Grok 4.7 High), `grok-4.7-xhigh`, and `cursor-grok-4.5-high` (Grok 4.5). Verified live: both commands below returned `OK` for `-p "Reply only: OK"`. Headless flags (`agent --help`): `-p`/`--print`, `--model <id>`, `-f`/`--force` (allow commands), `--trust`, `--workspace <path>`.
+> - **Night loop**: `./.muse/night-shift.sh` (prompt: `.muse/NIGHT_LOOP_PROMPT.md`, logs: `.muse/night-logs/`, stop: `touch STOP_NIGHT_SHIFT`).
+
 - **Use `tagy` (Antigravity CLI) as MUCH as needed for heavy implementation & UI:**
-  - Whenever you are scaffolding new components, building full views (`SpecsView`, `ColonyBoardView`, `CockpitSplitView`), or editing multiple files across the monorepo, invoke `tagy` headlessly:
+  - Whenever you are scaffolding new components, building full views (`SpecsView`, `ColonyBoardView`, `CockpitSplitView`), or editing multiple files across the monorepo, invoke `tagy` headlessly (exact verified command):
     `tagy -p "Read MOUND_PLAN.md and .agents/skills/frontend-design. Implement <specific task> cleanly and verify imports."`
-  - You can run `tagy` multiple times per phase to parallelize or iterate on UI polish.
+  - You can run `tagy` multiple times per phase to parallelize or iterate on UI polish. Remember each call cycles the Antigravity account slot.
 
 - **Use Cursor CLI with Grok for "Deep Shit" (Complex Architecture & Gnarly Bugs):**
-  - When designing the WebSocket sync architecture in `apps/server`, hooking into T3 Code's `ProviderManager` worktree lifecycle, or fixing stubborn TypeScript/state bugs that fail twice, call Cursor CLI with Grok:
-    `cursor agent --model grok -p "Analyze apps/server and packages/contracts. Solve <deep architectural task or bug> without breaking existing RPC handlers."`
-    _(Fallback if using standalone `agent` binary: `agent --model grok -p "..."`)_
+  - When designing the WebSocket sync architecture in `apps/server`, hooking into T3 Code's `ProviderManager` worktree lifecycle, or fixing stubborn TypeScript/state bugs that fail twice, call Cursor CLI with Grok (exact verified commands; `--model grok` alone does **not** work):
+    `cursor agent --model grok-4.7-high -p --force --trust "Analyze apps/server and packages/contracts. Solve <deep architectural task or bug> without breaking existing RPC handlers."`
+    _(Equivalent direct binary, also verified: `agent --model grok-4.7-high -p --force --trust "..."` — prefer this form in scripts to skip the `cursor` shim.)_
 
 ## 2. MANDATORY VERIFICATION AFTER EVERY CHANGE
 

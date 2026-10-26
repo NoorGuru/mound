@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 set -u
 
-# 1. Force subshells to load your aliases (like 'tagy') and PATH
-shopt -s expand_aliases
-[ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc"
-[ -f "$HOME/.zshrc" ] && source "$HOME/.zshrc" 2>/dev/null || true
-export PATH="$HOME/.local/bin:$HOME/.antigravity/bin:$PATH"
+# Run from repo root regardless of caller cwd (script lives in .muse/)
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || exit 1
+# tagy/cursor/agent/muse are real executables in ~/.local/bin (tagy is a shim, not an alias), so PATH alone works in non-interactive subshells
+export PATH="$HOME/.local/bin:$PATH"
 
-PROMPT_FILE="NIGHT_LOOP_PROMPT.md"
+PROMPT_FILE=".muse/NIGHT_LOOP_PROMPT.md"
 LOG_DIR=".muse/night-logs"
 mkdir -p "$LOG_DIR"
+if [ ! -f "$PROMPT_FILE" ]; then echo "Missing $PROMPT_FILE" >&2; exit 1; fi
+command -v muse >/dev/null || { echo "muse not found on PATH" >&2; exit 1; }
+command -v tagy >/dev/null || { echo "tagy not found on PATH" >&2; exit 1; }
 
 verify_repo() {
   echo "🔍 [Verifier] Running TypeScript & Vite bundle checks..."
@@ -59,7 +61,7 @@ while true; do
     muse exec \
       --yolo \
       --max-model-steps 50 \
-      -p "URGENT: The build or typecheck is currently failing. Run 'bun run typecheck' and 'cd apps/web && bun run build', inspect the exact errors, use 'tagy' or 'cursor' with Grok to fix every single error until the build passes cleanly, then git commit the fix." \
+      "URGENT: The build or typecheck is currently failing. Run 'bun run typecheck' and 'cd apps/web && bun run build', inspect the exact errors, use 'tagy -p' or 'agent --model grok-4.7-high -p --force' to fix every single error until the build passes cleanly, then git commit the fix." \
       2>&1 | tee "$LOG_DIR/iter_${ITERATION}_repair.log"
   fi
 
