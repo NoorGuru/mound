@@ -1,10 +1,35 @@
 # For Mound work on top of T3 Code - Super Important:
 
-# MOUND HACKATHON INSTRUCTIONS FOR MUSE
+# MOUND HACKATHON INSTRUCTIONS FOR MUSE (UBUNTU SERVER MODE)
 
-- **Primary Blueprint:** Always read `MOUND_PLAN.md` and `MEMORY.md` at the start of every session.
-- **Design Skills:** Always apply `.agents/skills/frontend-design` rules when writing React/Tailwind components in `apps/web`. Never use generic AI purple gradients; strictly follow the dark carbon (`#0B0C0E`) + Mound Amber (`#E57C23`) Linear/Raycast aesthetic defined in `MOUND_PLAN.md`.
-- **Autonomy:** We are in Hackathon Mode. Do NOT write tests. Do NOT add accessibility attributes. Do NOT ask for confirmation before editing files. Execute phases sequentially, verify builds, check off `- [x]` in `MOUND_PLAN.md`, update `MEMORY.md`, and keep going.
+## 1. MULTI-AGENT DELEGATION PROTOCOL (USE YOUR SUB-AGENTS!)
+
+You are the Lead Orchestrator. Do not do all raw coding alone—offload heavy lifting to `tagy` (Antigravity with custom config) and `cursor` (with Grok):
+
+- **Use `tagy` (Antigravity CLI) as MUCH as needed for heavy implementation & UI:**
+  - Whenever you are scaffolding new components, building full views (`SpecsView`, `ColonyBoardView`, `CockpitSplitView`), or editing multiple files across the monorepo, invoke `tagy` headlessly:
+    `tagy -p "Read MOUND_PLAN.md and .agents/skills/frontend-design. Implement <specific task> cleanly and verify imports."`
+  - You can run `tagy` multiple times per phase to parallelize or iterate on UI polish.
+
+- **Use Cursor CLI with Grok for "Deep Shit" (Complex Architecture & Gnarly Bugs):**
+  - When designing the WebSocket sync architecture in `apps/server`, hooking into T3 Code's `ProviderManager` worktree lifecycle, or fixing stubborn TypeScript/state bugs that fail twice, call Cursor CLI with Grok:
+    `cursor agent --model grok -p "Analyze apps/server and packages/contracts. Solve <deep architectural task or bug> without breaking existing RPC handlers."`
+    _(Fallback if using standalone `agent` binary: `agent --model grok -p "..."`)_
+
+## 2. MANDATORY VERIFICATION AFTER EVERY CHANGE
+
+Never claim a task is done without running all 3 verification checks yourself:
+
+1. `bun run typecheck` (or `bunx tsc --noEmit` across `packages/contracts`, `apps/server`, and `apps/web`)
+2. `bun --filter @t3tools/web build` (or `cd apps/web && bun run build`) to guarantee zero Vite/React bundling or missing import errors.
+3. Boot smoke check: verify `apps/server` compiles and imports `ColonyManager` with zero runtime crashes.
+   If ANY check fails, immediately use `tagy` or `cursor` with Grok to fix the exact error before updating `MOUND_PLAN.md`.
+
+## 3. DESIGN & HACKATHON RULES
+
+- Always follow `MOUND_PLAN.md` and log progress in `MEMORY.md` and `NIGHT_LOG.md`.
+- Strictly follow `.agents/skills/frontend-design`: Dark Carbon (`#0B0C0E`), Mound Amber (`#E57C23`), Linear/Raycast high-density aesthetic. Zero AI purple gradients.
+- Hackathon Mode: Zero unit tests, zero accessibility attributes, zero login walls.
 
 ---
 
