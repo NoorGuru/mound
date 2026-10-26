@@ -14,50 +14,40 @@ import { supportsSharedSettingsSync } from "@t3tools/client-runtime/state/shared
 import { AppText as Text } from "../../components/ui/AppText";
 import { mobilePreferencesAtom, updateMobilePreferencesAtom } from "../../state/preferences";
 import { SettingsSection } from "./components/SettingsSection";
-import { SettingsProjectOverridesSection } from "./components/SettingsProjectOverridesSection";
 import { SettingsSwitchRow } from "./components/SettingsSwitchRow";
 import { SettingsScreen } from "./components/SettingsScreen";
-import {
-  AndroidSettingsEnvironmentFilter,
-  SettingsEnvironmentFilterHeader,
-} from "./components/SettingsEnvironmentFilterHeader";
 import { planAutoSettleSettingsSync, type AutoSettleSettings } from "./autoSettleSettingsSync";
 import { useSettingsEnvironmentFilter } from "./settings-environment-filter";
 import { useSettingsWriter } from "./useSettingsWriter";
 import {
-  planMobileScopedSettingsClear,
   planMobileScopedSettingsPatch,
   resolveMobileSettingsTargets,
   uniformMobileSetting,
   type ScopedMobileSettingsTarget,
 } from "./settings-scoped-server";
 
-export function SettingsThreadsRouteScreen() {
+export function SettingsLabsRouteScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <>
-      <SettingsEnvironmentFilterHeader />
-      <SettingsScreen title="Thread behavior" trailing={<AndroidSettingsEnvironmentFilter />}>
-        <ScrollView
-          contentInsetAdjustmentBehavior="automatic"
-          showsVerticalScrollIndicator={false}
-          className="flex-1"
-          contentContainerClassName="gap-6 px-5 pt-4"
-          contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 18) + 18 }}
-        >
-          <AutoSettleSettingsRows />
-          <BetaSettingsSection />
-          <LegacySettingsSection />
-        </ScrollView>
-      </SettingsScreen>
-    </>
+    <SettingsScreen title="Labs">
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        showsVerticalScrollIndicator={false}
+        className="flex-1"
+        contentContainerClassName="gap-6 px-5 pt-4"
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 18) + 18 }}
+      >
+        <LegacySettingsSection />
+      </ScrollView>
+    </SettingsScreen>
   );
 }
 
 const AUTO_SETTLE_DEFAULT_DAYS = DEFAULT_SERVER_SETTINGS.sidebarAutoSettleAfterDays ?? 3;
 
-function AutoSettleSettingsRows() {
+/** Usage-limit and auto-settle rows; the Threads page owns their project override reset. */
+export function AutoSettleSettingsRows() {
   const { selectedTargets, projectGroups, selectedProjectKey } = useSettingsEnvironmentFilter();
   const selectedProject = projectGroups.find((group) => group.key === selectedProjectKey);
   const writableEnvironments = useEnvironmentsWithScope(selectedTargets, AuthSettingsWriteScope);
@@ -131,50 +121,10 @@ function AutoSettleSettingsRows() {
   );
   const disabled =
     !canWriteSettings || pendingWrites > 0 || (projectSelected && !supportsProjectOverrides);
-  const hasProjectOverrides =
-    projectSelected &&
-    syncTargets.some(
-      (target) =>
-        target.sources.sidebarAutoSettleOnMerge === "project" ||
-        target.sources.sidebarAutoSettleAfterDays === "project",
-    );
-  const clearProjectOverrides = () => {
-    if (
-      writeInFlight.current ||
-      !syncTargets.every((target) =>
-        readEnvironmentScope(target.environment.environmentId, AuthSettingsWriteScope),
-      )
-    )
-      return;
-    const writes = planMobileScopedSettingsClear(syncTargets, [
-      "sidebarAutoSettleOnMerge",
-      "sidebarAutoSettleAfterDays",
-    ]);
-    if (writes.length === 0) return;
-    writeInFlight.current = true;
-    setPendingTargets(syncTargets);
-    setPendingWrites((count) => count + 1);
-    void writeSettings(syncTargets, writes).finally(() => {
-      writeInFlight.current = false;
-      setPendingTargets(null);
-      setPendingWrites((count) => count - 1);
-    });
-  };
-
   const afterDays = referenceSettings.sidebarAutoSettleAfterDays;
 
   return (
     <View className="gap-6">
-      {projectSelected ? (
-        <SettingsProjectOverridesSection
-          projectLabel={selectedProject?.label ?? "Unavailable project"}
-          hasOverrides={hasProjectOverrides}
-          supportsOverrides={supportsProjectOverrides}
-          pending={pendingWrites > 0}
-          disabled={!canWriteSettings}
-          onClear={clearProjectOverrides}
-        />
-      ) : null}
       {!projectSelected ? (
         <SettingsSection title="Usage limits">
           <SettingsSwitchRow
@@ -242,7 +192,7 @@ function AutoSettleSettingsRows() {
   );
 }
 
-function BetaSettingsSection() {
+export function WorkingSectionSettings() {
   const savePreferences = useAtomSet(updateMobilePreferencesAtom);
   const preferences = useAtomValue(mobilePreferencesAtom);
   const workingShelfEnabled =
@@ -250,7 +200,7 @@ function BetaSettingsSection() {
 
   return (
     <View className="gap-3">
-      <SettingsSection title="Beta">
+      <SettingsSection title="Sidebar">
         <SettingsSwitchRow
           icon="bolt.circle"
           label="Working section"

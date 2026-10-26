@@ -10,7 +10,7 @@ On web or desktop, open **Settings > Providers**, choose the environment that ru
 your project, and enable Antigravity. Install its runtime there, then choose
 **Sign in** and complete the browser sign-in. Wait for T3 Code to confirm
 account access and load models before starting a thread. Once the runtime is installed,
-you can also sign in from **Settings > Provider accounts** in the mobile app.
+you can also sign in from **Settings > Providers** in the mobile app.
 
 Installation continues if you leave settings or reconnect. Setup requires
 permission to operate the environment; update an older server if it does not offer
