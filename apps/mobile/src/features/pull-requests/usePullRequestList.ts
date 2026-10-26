@@ -156,15 +156,18 @@ export function usePullRequestList(targets: readonly ListTarget[]) {
   // Starting one kind of load clears the other, so at most one holds an error.
   const loadError = settledError(refresh) ?? settledError(page);
 
+  // Read from the registry, not the render: a second onEndReached before React re-renders must
+  // see the load the first one started.
   const loadMore = (retry = false) => {
-    if (page.waiting || refresh.waiting || (!retry && loadError)) return;
+    if (registry.get(pageAtom).waiting || registry.get(refreshAtom).waiting) return;
+    if (!retry && loadError) return;
     if (!continuations(registry, targets).length) return;
     registry.set(refreshAtom, Atom.Reset);
     registry.set(pageAtom, retry);
   };
 
   const onRefresh = () => {
-    if (!targets.length || refresh.waiting) return;
+    if (!targets.length || registry.get(refreshAtom).waiting) return;
     registry.set(pageAtom, Atom.Reset);
     registry.set(refreshAtom, undefined);
   };

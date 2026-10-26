@@ -1,9 +1,13 @@
+import { useAtomValue } from "@effect/atom-react";
 import { sortProjectsByGroupOrder } from "@t3tools/client-runtime/state/project-grouping";
+import type { ScopedProjectRef, SidebarProjectGroupingMode } from "@t3tools/contracts";
+import { Atom } from "effect/reactivity";
 import { useMemo } from "react";
 import { Platform, ScrollView } from "react-native";
 import type { MenuProps } from "../../components/ui/Menu.types";
 import { ListFilterMenu } from "../workspace/ListFilterMenu";
-import { useProjects, useThreadShells } from "../../state/entities";
+import { environmentProjects } from "../../state/projects";
+import { environmentThreadShells } from "../../state/threads";
 import { useMobileProjectGroupingSettings } from "../../state/project-grouping";
 import { buildHomeProjectScopes, sortHomeProjectScopes } from "../home/homeThreadList";
 import { DEFAULT_PR_LIST_CONTROLS, type PullRequestListControls } from "./pullRequestList";
@@ -38,26 +42,43 @@ function choices(field: string, options: Readonly<Record<string, string>>, selec
   }));
 }
 
+type ProjectOrder = readonly { readonly memberProjectRefs: readonly ScopedProjectRef[] }[];
+const sameProjectOrder = (previous: ProjectOrder, next: ProjectOrder) =>
+  previous.length === next.length &&
+  previous.every((group, index) => {
+    const members = next[index]!.memberProjectRefs;
+    return (
+      group.memberProjectRefs.length === members.length &&
+      group.memberProjectRefs.every(
+        (ref, member) =>
+          ref.environmentId === members[member]!.environmentId &&
+          ref.projectId === members[member]!.projectId,
+      )
+    );
+  });
+
+// Thread shells change on every agent tick, but the sidebar order they decide rarely does. The
+// equality check keeps the list screen, which builds these filters, from re-rendering on each tick.
+const sidebarProjectOrderFamily = Atom.family((mode: SidebarProjectGroupingMode) =>
+  Atom.make((get) =>
+    sortHomeProjectScopes({
+      scopes: buildHomeProjectScopes({
+        projects: get(environmentProjects.projectsAtom),
+        environmentId: null,
+        projectGroupingMode: mode,
+      }),
+      threads: get(environmentThreadShells.threadShellsAtom),
+      pendingTasks: [],
+      projectSortOrder: "updated_at",
+    }).map((scope) => ({ memberProjectRefs: scope.projectRefs })),
+  ).pipe(Atom.withEquality(sameProjectOrder)),
+);
+
 function useProjectsInSidebarOrder<Project extends { id: string; environmentId: string }>(
   projects: readonly Project[],
 ) {
-  const allProjects = useProjects();
-  const threads = useThreadShells();
   const { sidebarProjectGroupingMode } = useMobileProjectGroupingSettings();
-  const scopes = useMemo(
-    () =>
-      sortHomeProjectScopes({
-        scopes: buildHomeProjectScopes({
-          projects: allProjects,
-          environmentId: null,
-          projectGroupingMode: sidebarProjectGroupingMode,
-        }),
-        threads,
-        pendingTasks: [],
-        projectSortOrder: "updated_at",
-      }).map((scope) => ({ memberProjectRefs: scope.projectRefs })),
-    [allProjects, sidebarProjectGroupingMode, threads],
-  );
+  const scopes = useAtomValue(sidebarProjectOrderFamily(sidebarProjectGroupingMode));
   return useMemo(() => sortProjectsByGroupOrder(projects, scopes), [projects, scopes]);
 }
 
