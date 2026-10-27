@@ -1,5 +1,13 @@
 # Mound Memory
 
+## 2026-10-27 — Overnight iteration 13 (Product Council: Handoff Claim)
+
+- Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B. Council: tagy (`/tmp/council13-tagy.md`, Claim 15 / Reopen 14 / Resume 15) + Grok (`agent --model grok-4.7-high`; Claim 5/4/5, Reopen 3/3/4, Resume 3/2/2). Winner: Handoff Claim — Grok: "the only candidate whose first-load action writes a field the seed already filled in."
+- Critique corrections: tagy's `adoptedById/adoptedByName` packet stamp rejected (no such schema fields); audit comment rejected (non-steering comments count as open questions, would fake a blocker). Shipped claim mutates ONLY `assigneeId`. Reopen rejected: MND-100 keeps 3 approvals + `completed`, so merge stays unlocked and in-flight jumps 6->7 falsely. Resume rejected: no paused task seeded; toggling destroys `waiting_review`.
+- Built (tagy, reviewed locally): `deriveTaskClaim()` in `MoundApp.tsx`, Board "Take over" claim button, Cockpit "Take over as {me}" + "You own this task · handed off by {creator}", Cockpit assignee `<select>` (reverse of claim). No contract/server change.
+- Verification: typecheck 35/35, web build passed (Take over strings in mound chunk), colonyManager.test.ts 6/6, probe `noor none / sarah MND-102 / alex MND-102 / CLAIM-OK sarah noor 1 review Codex` (claim preserves packet creator, approvals, column, provider), lint 19 = pre-existing MoundApp baseline with none in new lines, fmt clean.
+- Next: two-window visual check still not run; a live provider run still needs a project in the dev DB.
+
 ## 2026-10-27 — Overnight iteration 12 (Product Council: Live Presence)
 
 - Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B. tagy council calls errored `interrupted` twice (known fallback); Grok council ran compact (long prompts return empty). Grok candidates: File Collision Lock (rejected: `filesChanged` is a count, not paths — banned Conflict Radar defect), Status Lie (rejected: seed has zero column/status mismatches, flags legitimate paused-in-review), Unsigned Done (rejected: MND-100 has 3 approvals, zero first-load). Winner: Live Presence (final Alignment 5 / Visual 4 / Self-contained 4; Grok 5/3/3, winner as only proposal removing a false on-screen claim).

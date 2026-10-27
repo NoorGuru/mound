@@ -416,6 +416,18 @@ function deriveConsensus(task: SdlcTask, members: ReadonlyArray<TeamMember>): Ta
   };
 }
 
+interface TaskClaimInfo {
+  isMine: boolean;
+  claimable: boolean;
+}
+
+function deriveTaskClaim(task: SdlcTask | undefined, memberId: string): TaskClaimInfo {
+  if (!task) return { isMine: false, claimable: false };
+  const isMine = task.assigneeId === memberId;
+  const claimable = Boolean(task.handoff) && task.assigneeId !== memberId && task.column !== "done";
+  return { isMine, claimable };
+}
+
 export const PRESENCE_TTL_MS = 45_000;
 
 function deriveTaskViewers(
@@ -930,6 +942,7 @@ export default function MoundApp() {
   const resolutions = deriveResolutions(task);
   const anchor = deriveSpecAnchor(task, state.specs, state.tasks, state.members);
   const myApproval = (task.approvals ?? []).find((a) => a.memberId === me.id);
+  const taskClaim = deriveTaskClaim(task, me.id);
   const matrix = deriveSpecMatrix(spec, state.tasks);
   const verifiedCount = matrix.filter((r) => r.status === "shipped").length;
   const taskReqIndex = new Map(
@@ -1968,9 +1981,29 @@ export default function MoundApp() {
                       <div style={{ fontWeight: 600, margin: "4px 0" }}>{t.title}</div>
                       <div style={{ color: C.dim, fontSize: 12 }}>{t.description}</div>
                       {t.handoff ? (
-                        <div style={{ color: C.sky, fontSize: 11, marginTop: 6 }}>
-                          Handoff ready · by {t.handoff.createdByName}
-                        </div>
+                        deriveTaskClaim(t, me.id).claimable ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              patchTask(t.id, { assigneeId: me.id });
+                            }}
+                            style={{
+                              ...btn(),
+                              marginTop: 6,
+                              fontSize: 11,
+                              padding: "2px 6px",
+                              color: C.amber,
+                              border: `1px solid ${C.amber}`,
+                            }}
+                          >
+                            Handoff ready · by {t.handoff.createdByName} · Take over
+                          </button>
+                        ) : (
+                          <div style={{ color: C.sky, fontSize: 11, marginTop: 6 }}>
+                            Handoff ready · by {t.handoff.createdByName}
+                          </div>
+                        )
                       ) : null}
                       {(t.column === "review" ||
                         t.column === "done" ||
@@ -2135,8 +2168,29 @@ export default function MoundApp() {
             }}
           >
             Task {task.id} · Assignee{" "}
-            {state.members.find((m) => m.id === task.assigneeId)?.name ?? task.assigneeId} · Viewing
-            now:{" "}
+            {state.members.find((m) => m.id === task.assigneeId)?.name ?? task.assigneeId}{" "}
+            <select
+              aria-label="Reassign task"
+              value={task.assigneeId}
+              onChange={(e) => patchTask(task.id, { assigneeId: e.target.value })}
+              style={{
+                background: C.panel2,
+                color: C.text,
+                border: C.border,
+                borderRadius: 6,
+                padding: "2px 6px",
+                fontSize: 12,
+                marginLeft: 4,
+                marginRight: 4,
+              }}
+            >
+              {state.members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name} ({m.role})
+                </option>
+              ))}
+            </select>{" "}
+            · Viewing now:{" "}
             {deriveTaskViewers(state, task.id, me, true)
               .map((v) => (v.isMe ? `${v.memberName} (you)` : `${v.memberName} (${v.role})`))
               .join(", ")}
@@ -2526,14 +2580,29 @@ export default function MoundApp() {
                 </h4>
                 {task.handoff ? (
                   <span style={{ color: C.sky, fontSize: 11 }}>
-                    Handoff ready · by {task.handoff.createdByName}
+                    {task.assigneeId === me.id && task.handoff.createdById !== me.id
+                      ? `You own this task · handed off by ${task.handoff.createdByName}`
+                      : `Handoff ready · by ${task.handoff.createdByName}`}
                   </span>
                 ) : (
                   <span style={{ color: C.dim, fontSize: 11 }}>Not generated</span>
                 )}
               </div>
               <div style={{ display: "flex", gap: 6 }}>
-                <button type="button" style={btn(true)} onClick={() => createHandoff(task)}>
+                {taskClaim.claimable ? (
+                  <button
+                    type="button"
+                    style={btn(true)}
+                    onClick={() => patchTask(task.id, { assigneeId: me.id })}
+                  >
+                    Take over as {me.name}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  style={taskClaim.claimable ? btn() : btn(true)}
+                  onClick={() => createHandoff(task)}
+                >
                   {task.handoff ? "Refresh Handoff Packet" : "Create Handoff Packet"}
                 </button>
                 <button type="button" style={btn()} onClick={() => copyPacket(task)}>
