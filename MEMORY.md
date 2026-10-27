@@ -1,5 +1,12 @@
 # Mound Memory
 
+## 2026-10-27 — Overnight iteration 15 (Product Council: Spec Discussion Composer)
+
+- Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B. Council: tagy full prompt errored `interrupted` (known fallback), Grok short-form returned Pulse/load-line/drift-chip — all rejected as HUD re-slices or fuzzy drift (MND-100 done with unchecked Req5 box is legitimate pre-Sync state). Winner: Spec Discussion Composer (13: 5/3/5) over Myrmex Resume (11, invisible first load, steer already resumes) and Command Bar ⌘K (13, navigation-only, host-palette collision; lost operational-leverage tiebreak). Honest subset of iteration-14's Spec Studio: composer only, no Req-prefix linking, no status toggle.
+- Built (tagy, reviewed locally): `specDraft` + `postSpecComment()` in `MoundApp.tsx` Specs aside — appends SpecComment as current member via existing save() + colony.saveSpec, whitespace no-op, Enter submits. No contract/server change. `.t3-verify` runtime log noise reverted, not committed.
+- Verification: typecheck 35/35, direct web tsc 0, web build passed ("Post comment" in mound chunk), colonyManager.test.ts 6/6, probe `SPEC-COMMENT-OK`, oxlint 0 on MoundApp.
+- Next: two-window visual check still not run; a live provider run still needs a project in the dev DB.
+
 ## 2026-10-27 — Overnight iteration 14 (Product Council: Request Changes)
 
 - Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B. Council: tagy (`/tmp/council14-tagy.md`, Command Bar / Request Changes / Spec Studio all drafted 15) + Grok compact (`/tmp/council14-grok.md`: Split Focus / Free Hands / Silent Run, all Squadron HUD re-slices, rejected as passive awareness). Winner: Request Changes & Resume Coding (final 14: 5/4/5) over Command Bar (13) and Spec Studio (12). Gap verified in source: Cockpit review actions were only Pause (Myrmex paused, column stays review), Ping (-> review), Approve (-> done at 3/3) — no way back to active.

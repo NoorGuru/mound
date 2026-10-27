@@ -4,6 +4,7 @@ import type {
   ColonyState,
   HandoffPacket,
   SdlcTask,
+  SpecComment,
   TeamMember,
 } from "@t3tools/contracts";
 import { AsyncResult, Atom } from "effect/reactivity";
@@ -623,6 +624,7 @@ export default function MoundApp() {
   const [inboxOpen, setInboxOpen] = useState(false);
   const [resolveDraft, setResolveDraft] = useState("");
   const [changesDraft, setChangesDraft] = useState("");
+  const [specDraft, setSpecDraft] = useState("");
   const me = state.members.find((m) => m.id === roleId) ?? state.members[0]!;
   const spec = state.specs[0]!;
   const task = state.tasks.find((t) => t.id === selected) ?? state.tasks[0]!;
@@ -839,6 +841,32 @@ export default function MoundApp() {
       ],
     });
     setResolveDraft("");
+  };
+
+  const postSpecComment = () => {
+    const trimmed = specDraft.trim();
+    if (!trimmed) return;
+    const comment: SpecComment = {
+      id: `c-${Date.now()}`,
+      authorId: me.id,
+      authorName: me.name,
+      authorRole: me.role,
+      content: trimmed,
+      createdAt: new Date().toISOString(),
+    };
+    const nextSpec = {
+      ...spec,
+      comments: [...spec.comments, comment],
+      updatedAt: new Date().toISOString(),
+    };
+    save({
+      ...state,
+      specs: state.specs.map((s) => (s.id === spec.id ? nextSpec : s)),
+    });
+    if (environmentId !== null) {
+      void runSaveSpec({ environmentId, input: { spec: nextSpec } });
+    }
+    setSpecDraft("");
   };
 
   const createHandoff = (t: SdlcTask): HandoffPacket => {
@@ -1485,6 +1513,30 @@ export default function MoundApp() {
                 {c.content}
               </p>
             ))}
+            <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
+              <input
+                value={specDraft}
+                onChange={(e) => setSpecDraft(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && postSpecComment()}
+                placeholder={`Comment as ${me.name} (${me.role})`}
+                style={{
+                  flex: 1,
+                  background: C.panel,
+                  color: C.text,
+                  border: C.border,
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  fontSize: 12,
+                }}
+              />
+              <button
+                type="button"
+                style={{ ...btn(true), whiteSpace: "nowrap" }}
+                onClick={postSpecComment}
+              >
+                Post comment
+              </button>
+            </div>
           </aside>
         </main>
       )}
