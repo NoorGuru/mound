@@ -1,5 +1,15 @@
 # Night Log
 
+## 2026-10-27 — Iteration 10 (Product Council, CASE B): SHIPPED & VERIFIED ✅
+
+- Pre-flight green: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed on the untouched tree. All plan items were [x], so ran the Product Council with both delegates (tagy full text in `/tmp/council10-tagy.md`, Grok via `agent --model grok-4.7-high`).
+- Council candidates scored (Alignment / Visual-Demo / Self-contained, /5 each; tagy draft -> Grok critique -> final):
+  1. **Cockpit Spec Traceability Anchor (WINNER, 14 -> 10 -> 13):** embeds the task's linked spec requirement, acceptance line, and latest PM spec comment into the Live Cockpit. Grok: the only candidate putting a field the Cockpit does not already show onto that screen. One Grok correction verified against source: the `## Acceptance` block Grok called invented DOES exist in the server seed (`apps/server/src/colonyManager.ts:81-82`), so Self-contained is 5, not 3. The web seed lacked that section and was mirrored so the anchor is visible on first load.
+  2. Release Flight Check (15 -> 6): rejected. Gates 1/3/4 restate the Acceptance Matrix, Squadron HUD strip, and Review Inbox/Consensus blocker; "4/15 required approvals" invents a denominator (honest review-gated coverage is 4/6; todo/active tasks are not awaiting sign-off); there is no deploy target for a Go/No-Go verdict.
+  3. Merge Runway (15 -> 7): rejected. The Board already sequences Ready/Active/Review/Shipped and cards already show branch, provider, files, and Consensus; the schema has no main node, commit delta, branch health, or merge order to paint honestly.
+- Built (tagy build interrupted with zero edits, same fallback as iterations 1/3/7; built and reviewed locally): `deriveSpecAnchor()` + Spec Anchor banner above the Cockpit steering panel in [MoundApp.tsx](/home/noor/projects/mound/apps/web/src/mound/MoundApp.tsx) — Req N + requirement text, status pill, Consensus X/3, Acceptance line, latest PM comment, View Full Spec jump. Pure client derivation, no contract or server RPC change. Web `seed()` spec content mirrored with the server `## Acceptance` section.
+- Verification: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed, `vp test run apps/server/src/colonyManager.test.ts` 5/5, seed probe `req->task MND-101,MND-102,MND-103,MND-104,MND-100` (MND-102 = Req 2), anchor present in the built mound chunk. First-load demo: open the Live Cockpit on MND-102 to see Req 2 "Return HTTP 429 with a Retry-After header when the bucket is empty", In review, Consensus 1/3, the acceptance line, and Sarah's PM priority comment above the steering panel.
+
 ## 2026-10-27 — Iteration 1: SHIPPED & VERIFIED ✅
 
 - Fixed environment first: installed Node 26.12.1 locally (`/tmp/node26`), bun, and pnpm dependencies. Pre-flight typecheck and web build were green on the untouched tree (Node 22 cannot load the Vite TS config — pre-existing env issue, not code).

@@ -70,6 +70,14 @@
 - Verification: typecheck 35/35, web build passed, colonyManager.test.ts 5/5, smoke `MND-102 approvals eng MND-100 approvals 3`, oxlint 0 on touched files, `vp fmt` applied.
 - Next: Pairing Rail is runner-up; Conflict Radar still waits on real per-branch file lists. A pre-existing dev server on `.t3-verify` (ports 5733/13773) was left running untouched; its `.t3-verify/` runtime writes were excluded from the commit.
 
+## 2026-10-27 — Overnight iteration 10 (Product Council: Spec Traceability Anchor)
+
+- Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B council via tagy (`/tmp/council10-tagy.md`) + Grok critique (`agent --model grok-4.7-high`).
+- Council winner: Cockpit Spec Traceability Anchor (final 13: Alignment 5 / Visual 3 / Self-contained 5) over Release Flight Check (tagy 15 -> Grok 6, re-aggregates Matrix/HUD/Inbox/Gate, invented 4/15 approval denominator, no deploy target) and Merge Runway (tagy 15 -> Grok 7, board turned sideways, no main/commit-delta/merge-order in schema). Correction to Grok: `## Acceptance` block DOES exist in server seed (`colonyManager.ts:81-82`); web seed lacked it and was mirrored.
+- Built directly (tagy build interrupted, zero edits; same fallback as iterations 1/3/7): `deriveSpecAnchor()` in `MoundApp.tsx` (specId lookup, Req via `deriveSpecMatrix`, Acceptance parse until next `## `, last PM spec comment, `deriveConsensus`), amber-left-border banner above the Cockpit steering panel with status pill, Consensus X/3, View Full Spec -> Specs view. No contract/RPC change.
+- Verification: typecheck 35/35, web build passed, colonyManager.test.ts 5/5, seed probe `req->task MND-101,MND-102,MND-103,MND-104,MND-100` (MND-102 = Req 2), anchor string present in built mound chunk.
+- Next: Flight Check / Merge Runway remain rejected for the reasons above; a live provider run still needs a project in the dev DB.
+
 ## 2026-10-27 — Overnight iteration 9 (Product Council: Squadron HUD)
 
 - Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B council via tagy (`/tmp/council9-tagy.md`) + Grok critique (`agent --model grok-4.7-high`).

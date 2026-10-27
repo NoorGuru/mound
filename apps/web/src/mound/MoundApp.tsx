@@ -42,7 +42,7 @@ const seed = (): ColonyState => {
         status: "approved",
         updatedAt: at,
         content:
-          "# Edge Gateway Rate-Limiting & Token Bucket Migration\n\n## Requirements\n- [ ] Replace fixed-window counter with a token bucket per API key\n- [ ] Return HTTP 429 with a Retry-After header when the bucket is empty\n- [ ] Add per-route limits (auth routes stricter than read routes)\n- [ ] Emit metrics for allowed / throttled requests\n- [ ] Cover refill and burst edge cases",
+          "# Edge Gateway Rate-Limiting & Token Bucket Migration\n\n## Requirements\n- [ ] Replace fixed-window counter with a token bucket per API key\n- [ ] Return HTTP 429 with a Retry-After header when the bucket is empty\n- [ ] Add per-route limits (auth routes stricter than read routes)\n- [ ] Emit metrics for allowed / throttled requests\n- [ ] Cover refill and burst edge cases\n\n## Acceptance\nLoad test at 2x peak shows no 5xx increase; throttled clients receive Retry-After.",
         comments: [
           {
             id: "sc-1",
@@ -283,6 +283,44 @@ function deriveSpecMatrix(
     parsed.push({ index: parsed.length + 1, text, checked, linkedTask: best, status });
   }
   return parsed;
+}
+
+interface SpecAnchor {
+  specTitle: string;
+  requirement: SpecRequirement | null;
+  acceptance: string | null;
+  pmComment: ColonyState["specs"][number]["comments"][number] | null;
+  consensus: TaskConsensus;
+}
+
+function deriveSpecAnchor(
+  task: SdlcTask,
+  specs: ColonyState["specs"],
+  tasks: ReadonlyArray<SdlcTask>,
+  members: ReadonlyArray<TeamMember>,
+): SpecAnchor {
+  const spec = specs.find((s) => s.id === task.specId) ?? specs[0]!;
+  const requirement =
+    deriveSpecMatrix(spec, tasks).find((r) => r.linkedTask?.id === task.id) ?? null;
+  const lines = spec.content.split("\n");
+  const start = lines.findIndex((l) => l.trim() === "## Acceptance");
+  let acceptance: string | null = null;
+  if (start >= 0) {
+    const body: Array<string> = [];
+    for (const line of lines.slice(start + 1)) {
+      if (line.trim().startsWith("## ")) break;
+      if (line.trim()) body.push(line.trim());
+    }
+    acceptance = body.length > 0 ? body.join(" ") : null;
+  }
+  const pmComments = spec.comments.filter((c) => c.authorRole === "pm");
+  return {
+    specTitle: spec.title,
+    requirement,
+    acceptance,
+    pmComment: pmComments[pmComments.length - 1] ?? null,
+    consensus: deriveConsensus(task, members),
+  };
 }
 
 type GateStatus = "approved" | "blocked" | "pending";
@@ -785,6 +823,7 @@ export default function MoundApp() {
     ).values(),
   );
   const consensus = deriveConsensus(task, state.members);
+  const anchor = deriveSpecAnchor(task, state.specs, state.tasks, state.members);
   const myApproval = (task.approvals ?? []).find((a) => a.memberId === me.id);
   const matrix = deriveSpecMatrix(spec, state.tasks);
   const verifiedCount = matrix.filter((r) => r.status === "shipped").length;
@@ -1903,6 +1942,87 @@ export default function MoundApp() {
 
       {view === "cockpit" && task && (
         <main style={{ padding: 16 }}>
+          <div
+            style={{
+              background: C.panel,
+              border: C.border,
+              borderLeft: `3px solid ${C.amber}`,
+              borderRadius: 8,
+              padding: "10px 12px",
+              marginBottom: 10,
+            }}
+          >
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontFamily: "ui-monospace, monospace",
+                  fontWeight: 700,
+                  color: C.amber,
+                }}
+              >
+                {anchor.requirement
+                  ? `Spec anchor · Req ${anchor.requirement.index}`
+                  : "Spec anchor · No linked requirement"}
+              </span>
+              {anchor.requirement ? (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color:
+                      anchor.requirement.status === "shipped"
+                        ? C.green
+                        : anchor.requirement.status === "review"
+                          ? C.sky
+                          : anchor.requirement.status === "active"
+                            ? C.amber
+                            : C.dim,
+                    background: C.panel2,
+                    border: C.border,
+                    borderRadius: 4,
+                    padding: "2px 6px",
+                  }}
+                >
+                  {anchor.requirement.status === "shipped"
+                    ? "Shipped"
+                    : anchor.requirement.status === "review"
+                      ? "In review"
+                      : anchor.requirement.status === "active"
+                        ? "Active"
+                        : anchor.requirement.status === "ready"
+                          ? "Ready"
+                          : "Unlinked"}
+                </span>
+              ) : null}
+              <span style={{ fontSize: 11, color: C.dim }}>
+                Consensus {anchor.consensus.approvedCount}/3
+              </span>
+              <button
+                type="button"
+                style={{ ...btn(), marginLeft: "auto" }}
+                onClick={() => setView("specs")}
+              >
+                View Full Spec
+              </button>
+            </div>
+            {anchor.requirement ? (
+              <div style={{ fontSize: 12, marginTop: 6 }}>{anchor.requirement.text}</div>
+            ) : null}
+            <div style={{ fontSize: 11, color: C.dim, marginTop: 4 }}>{anchor.specTitle}</div>
+            {anchor.acceptance ? (
+              <div style={{ fontSize: 11, marginTop: 4 }}>
+                <span style={{ color: C.dim }}>Acceptance: </span>
+                {anchor.acceptance}
+              </div>
+            ) : null}
+            {anchor.pmComment ? (
+              <div style={{ fontSize: 11, marginTop: 4 }}>
+                <span style={{ color: C.sky }}>{anchor.pmComment.authorName} (PM): </span>
+                {anchor.pmComment.content}
+              </div>
+            ) : null}
+          </div>
           <div
             style={{
               background: C.panel,
