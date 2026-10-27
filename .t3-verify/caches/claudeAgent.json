@@ -13,7 +13,7 @@
     "canAuthenticate": false,
     "canInstall": false
   },
-  "checkedAt": "2026-10-27T02:06:29.334Z",
+  "checkedAt": "2026-10-27T02:41:00.750Z",
   "message": "Claude Agent CLI (`claude`) was not found on PATH.",
   "models": [
     {
@@ -641,7 +641,7 @@
     "updateCommand": null,
     "canUpdate": false,
     "canInstallVersion": false,
-    "checkedAt": "2026-10-27T02:06:29.334Z",
+    "checkedAt": "2026-10-27T02:41:00.750Z",
     "message": null
   }
 }
