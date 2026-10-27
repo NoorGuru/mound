@@ -128,6 +128,34 @@ export type ColonyState = typeof ColonyState.Type;
 
 export const COLONY_UPDATED_CHANNEL = "colony:updated" as const;
 
+export const ColonySaveSpecInput = Schema.Struct({ spec: ProductSpec });
+export type ColonySaveSpecInput = typeof ColonySaveSpecInput.Type;
+
+export const ColonyCreateTaskInput = Schema.Struct({ task: SdlcTask });
+export type ColonyCreateTaskInput = typeof ColonyCreateTaskInput.Type;
+
+export const ColonyUpdateTaskInput = Schema.Struct({ task: SdlcTask });
+export type ColonyUpdateTaskInput = typeof ColonyUpdateTaskInput.Type;
+
+export const ColonySummonMyrmexInput = Schema.Struct({
+  taskId: TrimmedNonEmptyString,
+  provider: TrimmedNonEmptyString,
+  actor: TeamMember,
+});
+export type ColonySummonMyrmexInput = typeof ColonySummonMyrmexInput.Type;
+
+export const ColonySteerSessionInput = Schema.Struct({
+  taskId: TrimmedNonEmptyString,
+  comment: MidWorkComment,
+});
+export type ColonySteerSessionInput = typeof ColonySteerSessionInput.Type;
+
+export const ColonyAddCommentInput = Schema.Struct({
+  taskId: TrimmedNonEmptyString,
+  comment: MidWorkComment,
+});
+export type ColonyAddCommentInput = typeof ColonyAddCommentInput.Type;
+
 export const ColonyRpcMethods = [
   "colony.getState",
   "colony.saveSpec",
@@ -137,5 +165,6 @@ export const ColonyRpcMethods = [
   "colony.steerSession",
   "colony.addComment",
   "colony.seedDemo",
+  "colony.subscribe",
 ] as const;
 export type ColonyRpcMethod = (typeof ColonyRpcMethods)[number];

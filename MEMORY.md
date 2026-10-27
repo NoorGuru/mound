@@ -10,3 +10,13 @@
 - Remaining: 2.3 full ProviderManager/WS RPC wiring, 3.3 Electron window polish, 6.1 native session/diff embedding, 7.1 two-window live verification.
 - Verification: `bun run typecheck` 35/35 successful; `vp run --filter @t3tools/web build` built; ColonyManager smoke import printed `Gateway Foundations Colony 5`.
 - Start: `PATH=/tmp/node26/bin:$PATH ./node_modules/.bin/vp run dev` then open the Mound route `/_chat/mound` (shown as /mound in the app) in a browser.
+
+## 2026-10-27 — Overnight iteration 2 (2.3 transport + 3.3)
+
+- Pre-flight green (Node 26 at /tmp/node26): typecheck 35/35, web build passed before changes.
+- 2.3 transport DONE: colony RPCs in contracts (`colony.getState/saveSpec/createTask/updateTask/summonMyrmex/steerSession/addComment/seedDemo` unary + `colony.subscribe` stream), server handlers in `apps/server/src/ws.ts` backed by `ColonyManager(config.stateDir)`, broadcast via subscribe stream (sliding 1-slot mailbox, snapshot-first). Scopes added in `RpcAuthorization.ts` (read=orchestration:read, writes=orchestration:operate), aggregates in `RpcInstrumentation.ts`, client guards in `clientRpcPermissions.ts`.
+- Grok verified: NO threadless provider-session API exists — `ProviderSessionManagerV2.open/startTurn/interruptTurn` all require threadId/projectId via orchestration dispatchCommand. So real ProviderManager binding for summon/steer still needs a project-bound thread design; NOT faked. 2.3 stays unchecked for those two sub-bullets.
+- Web: `apps/web/src/mound/colonyRpc.ts` created (subscription + 8 commands, tagy) + `colonySubscribe` added to `EnvironmentSubscriptionRpcTag` in client-runtime. MoundApp.tsx consumption (useAtomValue/useAtomCommand wiring) is the immediate next step — file ready, component not yet wired.
+- 3.3 DONE [x]: DesktopWindow title "Mound" (create + page-title-updated + did-finish-load), dark bg #0B0C0E, default size 1440x900.
+- Verification: typecheck 35/35, web build passed, ColonyManager smoke: summon MND-103 -> active feat/per-route-limit-config.
+- Next: wire MoundApp to colonyRpc atoms; then provider-thread binding design for summon/steer; 6.1/7.1 after.

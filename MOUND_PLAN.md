@@ -95,7 +95,7 @@ We are extending T3 Code's existing 4-part architecture without breaking its cor
     - Live Avatar Stack showing online team members.
     - **Interactive Role Switcher Dropdown:** Switch active identity instantaneously between _Noor (Staff Eng)_, _Sarah (PM)_, and _Alex (Reviewer)_ (stored in `sessionStorage` so opening two windows lets you play two roles simultaneously!).
     - **"Reset Demo State"** button for instant hackathon rehearsal resets.
-- [ ] **3.3 Polish Electron Window (`apps/desktop`):** Set default window title to `Mound` and configure clean dark-mode background color `#0B0C0E` on launch to prevent white flash.
+- [x] **3.3 Polish Electron Window (`apps/desktop`):** Set default window title to `Mound` and configure clean dark-mode background color `#0B0C0E` on launch to prevent white flash. (2026-10-27: `DesktopWindow.ts` title/background + default size 1440x900.)
 
 ### PHASE 4: View 1 — Multiplayer Specs & Task Breakdown (`SpecsView.tsx`)
 

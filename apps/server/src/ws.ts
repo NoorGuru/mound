@@ -95,6 +95,7 @@ import {
   type ProviderInstanceId,
   ThreadId,
   type TerminalMetadataStreamEvent,
+  type ColonyState,
   type PullRequestRef,
   WS_METHODS,
   WsRpcGroup,
@@ -186,6 +187,7 @@ import * as DatabaseStorage from "./persistence/DatabaseStorage.ts";
 import * as StorageCleanup from "./storageCleanup.ts";
 import * as TerminalManager from "./terminal/Manager.ts";
 import { terminalOutputStream, withTerminalOutputWindow } from "./terminal/OutputProtocol.ts";
+import { ColonyManager } from "./colonyManager.ts";
 import * as PreviewAutomationBroker from "./mcp/PreviewAutomationBroker.ts";
 import * as ServerBrowser from "./preview/ServerBrowser.ts";
 import * as DeviceService from "./device/DeviceService.ts";
@@ -1339,6 +1341,7 @@ export const layerWsRpc = (
       const providerInstallation = yield* makeProviderInstallation();
       const serverSelfUpdate = yield* ServerSelfUpdate.ServerSelfUpdate;
       const config = yield* ServerConfig.ServerConfig;
+      const colony = new ColonyManager(config.stateDir);
       const lifecycleEvents = yield* ServerLifecycleEvents.ServerLifecycleEvents;
       const storageCleanup = yield* StorageCleanup.StorageCleanup;
       const databaseStorage = yield* DatabaseStorage.DatabaseStorage;
@@ -2213,6 +2216,33 @@ export const layerWsRpc = (
         [WS_METHODS.scheduledTasksGetWebhookDelivery]: (input) =>
           Effect.annotateCurrentSpan({ "scheduled_task.id": input.id }).pipe(
             Effect.andThen(scheduledTasks.getWebhookDelivery(input)),
+          ),
+        [WS_METHODS.colonyGetState]: (_input) => Effect.sync(() => colony.getState()),
+        [WS_METHODS.colonySaveSpec]: (input) => Effect.sync(() => colony.saveSpec(input.spec)),
+        [WS_METHODS.colonyCreateTask]: (input) => Effect.sync(() => colony.createTask(input.task)),
+        [WS_METHODS.colonyUpdateTask]: (input) =>
+          Effect.sync(() => colony.updateTask(input.task.id, input.task)),
+        [WS_METHODS.colonySummonMyrmex]: (input) =>
+          Effect.sync(() => colony.summonMyrmex(input.taskId, input.provider, input.actor)),
+        [WS_METHODS.colonySteerSession]: (input) =>
+          Effect.sync(() => colony.steerSession(input.taskId, input.comment)),
+        [WS_METHODS.colonyAddComment]: (input) =>
+          Effect.sync(() => colony.addComment(input.taskId, input.comment)),
+        [WS_METHODS.colonySeedDemo]: (_input) => Effect.sync(() => colony.seedDemo()),
+        [WS_METHODS.colonySubscribe]: (_input) =>
+          Stream.callback<ColonyState>(
+            (mailbox) =>
+              Effect.acquireRelease(
+                Effect.sync(() => {
+                  const unsubscribe = colony.subscribe((state) =>
+                    Queue.offerUnsafe(mailbox, state),
+                  );
+                  Queue.offerUnsafe(mailbox, colony.getState());
+                  return unsubscribe;
+                }),
+                (unsubscribe) => Effect.sync(unsubscribe),
+              ),
+            { bufferSize: 1, strategy: "sliding" },
           ),
         [WS_METHODS.serverProbe]: (_input) => Effect.succeed({}),
         [WS_METHODS.serverGetConfig]: (_input) =>

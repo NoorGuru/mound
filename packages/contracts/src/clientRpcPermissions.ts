@@ -50,6 +50,13 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   [WS_METHODS.scheduledTasksRunNow]: AuthOrchestrationOperateScope,
   [WS_METHODS.scheduledTasksRotateWebhookToken]: AuthOrchestrationOperateScope,
   [ORCHESTRATION_V2_WS_METHODS.stopWorkflow]: AuthOrchestrationOperateScope,
+  [WS_METHODS.colonySaveSpec]: AuthOrchestrationOperateScope,
+  [WS_METHODS.colonyCreateTask]: AuthOrchestrationOperateScope,
+  [WS_METHODS.colonyUpdateTask]: AuthOrchestrationOperateScope,
+  [WS_METHODS.colonySummonMyrmex]: AuthOrchestrationOperateScope,
+  [WS_METHODS.colonySteerSession]: AuthOrchestrationOperateScope,
+  [WS_METHODS.colonyAddComment]: AuthOrchestrationOperateScope,
+  [WS_METHODS.colonySeedDemo]: AuthOrchestrationOperateScope,
   // A guest link hands thread access to someone outside, like a pairing link.
   [WS_METHODS.guestShareCreate]: AuthAccessWriteScope,
 } as const;

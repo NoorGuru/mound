@@ -214,6 +214,15 @@ const RPC_AGGREGATES = {
   [WS_METHODS.subscribeServerLifecycle]: "server",
   [WS_METHODS.subscribeAuthAccess]: "auth",
   [WS_METHODS.subscribeBackgroundPolicy]: "server",
+  [WS_METHODS.colonyGetState]: "colony",
+  [WS_METHODS.colonySaveSpec]: "colony",
+  [WS_METHODS.colonyCreateTask]: "colony",
+  [WS_METHODS.colonyUpdateTask]: "colony",
+  [WS_METHODS.colonySummonMyrmex]: "colony",
+  [WS_METHODS.colonySteerSession]: "colony",
+  [WS_METHODS.colonyAddComment]: "colony",
+  [WS_METHODS.colonySeedDemo]: "colony",
+  [WS_METHODS.colonySubscribe]: "colony",
 } as const satisfies Readonly<Record<WsRpcMethod, string>>;
 
 const RPC_SPAN_PREFIX = "ws.rpc";

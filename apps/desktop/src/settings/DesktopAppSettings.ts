@@ -59,8 +59,8 @@ export const DesktopWindowBoundsSchema = Schema.Struct({
 });
 export type DesktopWindowBounds = typeof DesktopWindowBoundsSchema.Type;
 export const DEFAULT_MAIN_WINDOW_SIZE = {
-  width: 1100,
-  height: 780,
+  width: 1440,
+  height: 900,
 } as const;
 
 export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {

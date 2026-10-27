@@ -380,6 +380,15 @@ import {
 } from "./sourceControl.ts";
 import { VcsError } from "./vcs.ts";
 import { Project, ProjectMutation, ProjectMutationError } from "./project.ts";
+import {
+  ColonyAddCommentInput,
+  ColonyCreateTaskInput,
+  ColonySaveSpecInput,
+  ColonyState,
+  ColonySteerSessionInput,
+  ColonySummonMyrmexInput,
+  ColonyUpdateTaskInput,
+} from "./colony.ts";
 
 export const WS_METHODS = {
   projectsList: "projects.list",
@@ -585,6 +594,16 @@ export const WS_METHODS = {
   subscribeAuthAccess: "subscribeAuthAccess",
   subscribeBackgroundPolicy: "subscribeBackgroundPolicy",
   subscribeResourceTelemetry: "subscribeResourceTelemetry",
+
+  colonyGetState: "colony.getState",
+  colonySaveSpec: "colony.saveSpec",
+  colonyCreateTask: "colony.createTask",
+  colonyUpdateTask: "colony.updateTask",
+  colonySummonMyrmex: "colony.summonMyrmex",
+  colonySteerSession: "colony.steerSession",
+  colonyAddComment: "colony.addComment",
+  colonySeedDemo: "colony.seedDemo",
+  colonySubscribe: "colony.subscribe",
 } as const;
 
 const WsServerUpsertKeybindingRpc = Rpc.make(WS_METHODS.serverUpsertKeybinding, {
@@ -1791,6 +1810,61 @@ const WsSubscribeTerminalMetadataRpc = Rpc.make(WS_METHODS.subscribeTerminalMeta
   stream: true,
 });
 
+const WsColonyGetStateRpc = Rpc.make(WS_METHODS.colonyGetState, {
+  payload: Schema.Struct({}),
+  success: ColonyState,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsColonySaveSpecRpc = Rpc.make(WS_METHODS.colonySaveSpec, {
+  payload: ColonySaveSpecInput,
+  success: ColonyState,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsColonyCreateTaskRpc = Rpc.make(WS_METHODS.colonyCreateTask, {
+  payload: ColonyCreateTaskInput,
+  success: ColonyState,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsColonyUpdateTaskRpc = Rpc.make(WS_METHODS.colonyUpdateTask, {
+  payload: ColonyUpdateTaskInput,
+  success: ColonyState,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsColonySummonMyrmexRpc = Rpc.make(WS_METHODS.colonySummonMyrmex, {
+  payload: ColonySummonMyrmexInput,
+  success: ColonyState,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsColonySteerSessionRpc = Rpc.make(WS_METHODS.colonySteerSession, {
+  payload: ColonySteerSessionInput,
+  success: ColonyState,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsColonyAddCommentRpc = Rpc.make(WS_METHODS.colonyAddComment, {
+  payload: ColonyAddCommentInput,
+  success: ColonyState,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsColonySeedDemoRpc = Rpc.make(WS_METHODS.colonySeedDemo, {
+  payload: Schema.Struct({}),
+  success: ColonyState,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsColonySubscribeRpc = Rpc.make(WS_METHODS.colonySubscribe, {
+  payload: Schema.Struct({}),
+  success: ColonyState,
+  error: EnvironmentAuthorizationError,
+  stream: true,
+});
+
 export const WsSubscribeServerConfigRpc = Rpc.make(WS_METHODS.subscribeServerConfig, {
   payload: Schema.Struct({
     /** Opt-in protects older clients that reject unknown theme event types. */
@@ -2118,4 +2192,13 @@ export const WsRpcGroup = RpcGroup.make(
   WsOrchestrationV2SubscribeShellRpc,
   WsOrchestrationV2SubscribeThreadRpc,
   WsOrchestrationV2SubscribeCommandOutputRpc,
+  WsColonyGetStateRpc,
+  WsColonySaveSpecRpc,
+  WsColonyCreateTaskRpc,
+  WsColonyUpdateTaskRpc,
+  WsColonySummonMyrmexRpc,
+  WsColonySteerSessionRpc,
+  WsColonyAddCommentRpc,
+  WsColonySeedDemoRpc,
+  WsColonySubscribeRpc,
 ).middleware(RpcScopeAuthorization);

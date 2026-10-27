@@ -211,6 +211,15 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.subscribeServerLifecycle]: AuthOrchestrationReadScope,
   [WS_METHODS.subscribeAuthAccess]: AuthAccessReadScope,
   [WS_METHODS.subscribeBackgroundPolicy]: AuthOrchestrationReadScope,
+  [WS_METHODS.colonyGetState]: AuthOrchestrationReadScope,
+  [WS_METHODS.colonySubscribe]: AuthOrchestrationReadScope,
+  [WS_METHODS.colonySaveSpec]: AuthOrchestrationOperateScope,
+  [WS_METHODS.colonyCreateTask]: AuthOrchestrationOperateScope,
+  [WS_METHODS.colonyUpdateTask]: AuthOrchestrationOperateScope,
+  [WS_METHODS.colonySummonMyrmex]: AuthOrchestrationOperateScope,
+  [WS_METHODS.colonySteerSession]: AuthOrchestrationOperateScope,
+  [WS_METHODS.colonyAddComment]: AuthOrchestrationOperateScope,
+  [WS_METHODS.colonySeedDemo]: AuthOrchestrationOperateScope,
 } as const satisfies Readonly<Record<WsRpcMethod, AuthEnvironmentScope>>;
 
 export function requiredScopeForRpcMethod(method: string): AuthEnvironmentScope {
