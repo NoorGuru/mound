@@ -364,6 +364,21 @@ function deriveSpecMatrix(
   return parsed;
 }
 
+function deriveExtractableRequirements(
+  spec: ColonyState["specs"][number],
+  tasks: ReadonlyArray<SdlcTask>,
+): { total: number; linkedCount: number; freshTexts: Array<string> } {
+  const rows = deriveSpecMatrix(spec, tasks);
+  const titles = new Set(tasks.map((t) => t.title.toLowerCase()));
+  return {
+    total: rows.length,
+    linkedCount: rows.filter((r) => r.linkedTask !== null).length,
+    freshTexts: rows
+      .filter((r) => !r.checked && r.linkedTask === null && !titles.has(r.text.toLowerCase()))
+      .map((r) => r.text),
+  };
+}
+
 interface SpecAnchor {
   specTitle: string;
   requirement: SpecRequirement | null;
@@ -1124,12 +1139,8 @@ export default function MoundApp() {
   };
 
   const extractTasks = () => {
-    const lines = spec.content
-      .split("\n")
-      .filter((l) => l.includes("- [ ]"))
-      .map((l) => l.replace(/.*- \[ \] /, "").trim());
-    const existing = new Set(state.tasks.map((t) => t.title.toLowerCase()));
-    const freshLines = lines.filter((l) => !existing.has(l.toLowerCase()));
+    const freshLines = deriveExtractableRequirements(spec, state.tasks).freshTexts;
+    if (freshLines.length === 0) return;
     const currentTasks = [...state.tasks];
     const fresh: SdlcTask[] = [];
     // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
@@ -1218,6 +1229,7 @@ export default function MoundApp() {
   const myApproval = (task.approvals ?? []).find((a) => a.memberId === me.id);
   const taskClaim = deriveTaskClaim(task, me.id);
   const matrix = deriveSpecMatrix(spec, state.tasks);
+  const extractable = deriveExtractableRequirements(spec, state.tasks);
   const verifiedCount = matrix.filter((r) => r.status === "shipped").length;
   const taskReqIndex = new Map(
     matrix.filter((r) => r.linkedTask).map((r) => [r.linkedTask!.id, r.index]),
@@ -1834,9 +1846,24 @@ export default function MoundApp() {
                 boxSizing: "border-box",
               }}
             />
-            <button type="button" style={{ ...btn(true), marginTop: 10 }} onClick={extractTasks}>
+            <button
+              type="button"
+              style={{
+                ...btn(true),
+                marginTop: 10,
+                opacity: extractable.freshTexts.length === 0 ? 0.5 : 1,
+              }}
+              disabled={extractable.freshTexts.length === 0}
+              onClick={extractTasks}
+            >
               Extract Tasks to Colony Board
             </button>
+            <p style={{ color: C.dim, fontSize: 11, margin: "6px 0 0" }}>
+              {extractable.linkedCount}/{extractable.total} requirements already linked
+              {extractable.freshTexts.length === 0
+                ? " — nothing to extract"
+                : ` — ${extractable.freshTexts.length} new to extract`}
+            </p>
           </section>
           <aside style={{ padding: 16 }}>
             <h3 style={{ fontSize: 12, color: C.dim, marginTop: 0 }}>Team discussion</h3>

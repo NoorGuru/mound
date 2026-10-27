@@ -1,5 +1,16 @@
 # Night Log
 
+## 2026-10-27 — Iteration 19 (Product Council, CASE B): SHIPPED & VERIFIED ✅
+
+- Pre-flight green on the untouched tree: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed, `colonyManager.test.ts` 8/8. All plan items were [x], so ran the Product Council. tagy returned empty (known fallback on this box, same as iterations 1/3/7); Grok answered short-form via `agent --model grok-4.7-high`.
+- Council candidates scored (Alignment / Visual-Demo / Self-contained, /5 each; Grok draft -> critique -> final):
+  1. **Linked Extract Guard (WINNER, Grok 5/4/5 -> final 14: 5/4/5):** verified in source before building — `extractTasks()` deduped only on exact title equality (`existing.has(l.toLowerCase())`), and no seed requirement text equals any task title ("Replace fixed-window counter…" vs "Token bucket middleware"), so one Extract click minted duplicate MND-105–109 over work `deriveSpecMatrix()` already links 5/5. The guard makes Extract consume the matrix's own linkage instead of a second, weaker dedupe. First-load demo: Specs view reads "5/5 requirements already linked — nothing to extract" with the button disabled.
+  2. Spec Comment Anchors (Grok 5/4/5 -> final 11: 3/3/5): rejected. Chipping Sarah's prose comment to "Req 2 · MND-102" is word-overlap inference over free text; the Spec Anchor already does this honestly for tasks, and a wrong chip on a human's words is a false claim, not awareness.
+  3. Acceptance Orphan (Grok 4/4/5 -> final 10: 2/3/5): rejected. The `## Acceptance` line is a verification criterion ("Load test at 2x peak…"), not backlog scope; minting MND-105 from it fabricates work the spec author never listed as a requirement.
+  - Standing rejections unchanged: Delete/Archive Task (no delete RPC or archived flag; a client-only hide resurrects on reload) and Myrmex Resume (no paused task seeded; Send & Steer already resumes).
+- Built: `deriveExtractableRequirements()` (unchecked + unlinked + not-title-equal, reusing `deriveSpecMatrix()`) in [MoundApp.tsx](/home/noor/projects/mound/apps/web/src/mound/MoundApp.tsx); `extractTasks()` early-returns on zero fresh, Extract button disabled at 5/5 with the linked-count caption. No contract or server change. No maintained test added: client-only derivation through the existing save path (hackathon mode; same pattern as iterations 6/7/9/10/13/14/16), covered by the seed probe below.
+- Verification: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed ("nothing to extract" present in the built mound chunk), `vp test run apps/server/src/colonyManager.test.ts` 8/8, probe `SEED 5/5 linked 0 fresh (1->MND-101 … 5->MND-100)` / `GROWN exactly 1 fresh` / `EXTRACT-GUARD-OK`. The `.t3-verify/` runtime churn from the pre-existing dev server was reverted and excluded from the commit. First-load demo: open Specs & Plan — the Extract button is disabled reading "5/5 requirements already linked — nothing to extract"; add a new `- [ ]` line in the editor, save, and it re-enables for exactly that line.
+
 ## 2026-10-27 — Iteration 18 (Product Council, CASE B): SHIPPED & VERIFIED ✅
 
 - Pre-flight green on the untouched tree; all plan items [x], so ran the Product Council with both delegates (tagy full scoring, Grok short-form via `agent --model grok-4.7-high`).

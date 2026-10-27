@@ -1,5 +1,12 @@
 # Mound Memory
 
+## 2026-10-27 — Overnight iteration 19 (Product Council: Linked Extract Guard)
+
+- Pre-flight green: typecheck 35/35, web build passed, colonyManager.test.ts 8/8. All plan items [x] -> CASE B. Council: tagy empty (known fallback), Grok short-form proposed Extract Guard / Comment Anchors / Acceptance Orphan. Winner: Linked Extract Guard (final 14: 5/4/5) — verified defect: `extractTasks` deduped on exact title only, no seed req text equals any title, so one click minted MND-105–109 duplicates over the matrix's 5/5 links. Anchors rejected (prose inference), Orphan rejected (acceptance prose is not backlog).
+- Built: `deriveExtractableRequirements()` reusing `deriveSpecMatrix()` in `MoundApp.tsx` (unchecked + unlinked + not-title-equal), `extractTasks` early-return on zero fresh, Extract button disabled at 5/5 with "N/5 requirements already linked" caption. No contract/server change, no maintained test (client-only, /tmp probe per iterations 14/16 pattern).
+- Verification: typecheck 35/35, web build passed (caption in mound chunk), colonyManager.test.ts 8/8, probe `SEED 5/5 0 fresh / GROWN 1 fresh / EXTRACT-GUARD-OK`. `.t3-verify/` churn reverted, not committed.
+- Next: Delete/Archive and Myrmex Resume remain rejected; two-window visual check still not run; a live provider run still needs a project in the dev DB.
+
 ## 2026-10-27 — Overnight iteration 18 (Product Council: Reopen Shipped Task)
 
 - Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B. Council: tagy (Reopen 14.5 / Resume 12.5 / Delete 8) + Grok short-form (Reopen 4/3/4 winner, Delete 2/2/2, Resume 3/1/2). Winner: Reopen Shipped Task — the standing runner-up from iterations 13/17, now specifiable honestly. Grok's load-bearing critique applied: the retired session must not rejoin in-flight totals.
