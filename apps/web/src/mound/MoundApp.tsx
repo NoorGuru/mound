@@ -236,6 +236,31 @@ const reqWords = (value: string): Set<string> =>
       .filter((word) => word.length >= 3),
   );
 
+const RESOLVED_PREFIX = "Resolved: ";
+type TaskComment = SdlcTask["reviewComments"][number];
+const isResolutionComment = (c: TaskComment): boolean =>
+  !c.isSteeringPrompt && c.content.startsWith(RESOLVED_PREFIX);
+
+// A question is open only when no later Resolved: comment answers it.
+function deriveOpenQuestions(task: SdlcTask): Array<TaskComment> {
+  const comments = task.reviewComments;
+  const lastResolvedAt = comments.reduce((acc, c, i) => (isResolutionComment(c) ? i : acc), -1);
+  return comments.filter(
+    (c, i) => !c.isSteeringPrompt && !isResolutionComment(c) && i > lastResolvedAt,
+  );
+}
+
+function deriveResolutions(task: SdlcTask): Array<TaskComment> {
+  return task.reviewComments.filter(isResolutionComment);
+}
+
+// Alternatives named in the question itself, e.g. "be seconds or an HTTP date?"
+function deriveResolutionOptions(question: string): Array<string> {
+  const match = /\bbe\s+(.+?)\s+or\s+(?:an?\s+)?(.+?)\s*[?.]/.exec(question);
+  if (!match) return [];
+  return [`Use ${match[1]!.trim()}`, `Use ${match[2]!.trim()}`];
+}
+
 function deriveSpecMatrix(
   spec: ColonyState["specs"][number],
   tasks: ReadonlyArray<SdlcTask>,
@@ -356,9 +381,7 @@ function deriveConsensus(task: SdlcTask, members: ReadonlyArray<TeamMember>): Ta
         reason: `Signed off by ${approval.memberName}`,
       };
     }
-    const questions = task.reviewComments.filter(
-      (c) => !c.isSteeringPrompt && c.authorRole === role,
-    );
+    const questions = deriveOpenQuestions(task).filter((c) => c.authorRole === role);
     if (questions.length > 0) {
       return {
         role,
@@ -368,12 +391,16 @@ function deriveConsensus(task: SdlcTask, members: ReadonlyArray<TeamMember>): Ta
         reason: questions[questions.length - 1]!.content,
       };
     }
+    const resolutions = deriveResolutions(task);
     return {
       role,
       label,
       member,
       status: "pending",
-      reason: `Waiting on ${member?.name ?? label}`,
+      reason:
+        resolutions.length > 0
+          ? `Question resolved: ${resolutions[resolutions.length - 1]!.content.slice(RESOLVED_PREFIX.length)} — waiting on ${member?.name ?? label} to sign off`
+          : `Waiting on ${member?.name ?? label}`,
     };
   });
   const approvedCount = gates.filter((g) => g.status === "approved").length;
@@ -457,8 +484,8 @@ function deriveSquadronHUD(state: ColonyState): SquadronHUDData {
     const authoredOpenQuestions = tasks
       .filter((t) => t.column !== "done")
       .flatMap((t) =>
-        t.reviewComments
-          .filter((c) => !c.isSteeringPrompt && c.authorId === member.id)
+        deriveOpenQuestions(t)
+          .filter((c) => c.authorId === member.id)
           .map((c) => ({
             taskId: t.id,
             taskTitle: t.title,
@@ -503,7 +530,7 @@ function deriveSquadronHUD(state: ColonyState): SquadronHUDData {
   const branchesInFlightCount = branchesInFlight.length;
 
   const blockerCount = tasks.filter(
-    (t) => t.column === "review" && t.reviewComments.some((c) => !c.isSteeringPrompt),
+    (t) => t.column === "review" && deriveOpenQuestions(t).length > 0,
   ).length;
 
   const shippedCount = tasks.filter((t) => t.column === "done").length;
@@ -551,6 +578,7 @@ export default function MoundApp() {
   const [filter, setFilter] = useState("all");
   const [copiedPacket, setCopiedPacket] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
+  const [resolveDraft, setResolveDraft] = useState("");
   const me = state.members.find((m) => m.id === roleId) ?? state.members[0]!;
   const spec = state.specs[0]!;
   const task = state.tasks.find((t) => t.id === selected) ?? state.tasks[0]!;
@@ -691,12 +719,31 @@ export default function MoundApp() {
     });
   };
 
+  const resolveQuestion = (t: SdlcTask, answer: string) => {
+    const trimmed = answer.trim();
+    if (!trimmed) return;
+    patchTask(t.id, {
+      reviewComments: [
+        ...t.reviewComments,
+        {
+          id: `c-${Date.now()}`,
+          taskId: t.id,
+          authorId: me.id,
+          authorName: me.name,
+          authorRole: me.role,
+          content: `${RESOLVED_PREFIX}${trimmed}`,
+          isSteeringPrompt: false,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    });
+    setResolveDraft("");
+  };
+
   const createHandoff = (t: SdlcTask): HandoffPacket => {
     // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
     const at = new Date().toISOString();
-    const openQuestions = t.reviewComments
-      .filter((c) => !c.isSteeringPrompt)
-      .map((c) => `${c.authorName}: ${c.content}`);
+    const openQuestions = deriveOpenQuestions(t).map((c) => `${c.authorName}: ${c.content}`);
     const status = t.myrmex?.status ?? "idle";
     const suggestedNextStep =
       openQuestions.length > 0
@@ -816,13 +863,15 @@ export default function MoundApp() {
         .filter(
           (t) =>
             t.column === "review" ||
-            t.reviewComments.some((c) => c.isSteeringPrompt === false) ||
+            deriveOpenQuestions(t).length > 0 ||
             t.myrmex?.status === "paused",
         )
         .map((t) => [t.id, t]),
     ).values(),
   );
   const consensus = deriveConsensus(task, state.members);
+  const openQuestions = deriveOpenQuestions(task);
+  const resolutions = deriveResolutions(task);
   const anchor = deriveSpecAnchor(task, state.specs, state.tasks, state.members);
   const myApproval = (task.approvals ?? []).find((a) => a.memberId === me.id);
   const matrix = deriveSpecMatrix(spec, state.tasks);
@@ -957,15 +1006,13 @@ export default function MoundApp() {
                     if (t.column === "review") {
                       reasons.push({ label: "In review", color: C.sky });
                     }
-                    if (t.reviewComments.some((c) => c.isSteeringPrompt === false)) {
+                    if (deriveOpenQuestions(t).length > 0) {
                       reasons.push({ label: "Open question", color: C.amber });
                     }
                     if (t.myrmex?.status === "paused") {
                       reasons.push({ label: "Paused", color: C.amber });
                     }
-                    const openQuestions = t.reviewComments.filter(
-                      (c) => c.isSteeringPrompt === false,
-                    );
+                    const openQuestions = deriveOpenQuestions(t);
                     const latestOpenQuestion =
                       openQuestions.length > 0 ? openQuestions[openQuestions.length - 1] : null;
 
@@ -2170,6 +2217,90 @@ export default function MoundApp() {
               </div>
             )}
           </div>
+          {(openQuestions.length > 0 || resolutions.length > 0) && (
+            <section
+              style={{
+                background: C.panel,
+                border: `1px solid ${openQuestions.length > 0 ? C.amber : C.green}`,
+                borderRadius: 8,
+                padding: 12,
+                marginTop: 10,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  fontFamily: "ui-monospace, monospace",
+                  fontWeight: 700,
+                  color: openQuestions.length > 0 ? C.amber : C.green,
+                }}
+              >
+                {openQuestions.length > 0
+                  ? `Review blocker · ${openQuestions.length} open question${openQuestions.length > 1 ? "s" : ""}`
+                  : "Review blocker cleared"}
+              </div>
+              {openQuestions.map((q) => (
+                <div key={q.id} style={{ marginTop: 8 }}>
+                  <div style={{ fontSize: 12 }}>
+                    <b>{q.authorName}</b>{" "}
+                    <span style={{ color: C.sky, fontSize: 11 }}>{q.authorRole}</span>
+                    <br />
+                    {q.content}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                    {deriveResolutionOptions(q.content).map((option, i) => (
+                      <button
+                        key={option}
+                        type="button"
+                        style={i === 0 ? btn(true) : btn()}
+                        onClick={() => resolveQuestion(task, option)}
+                      >
+                        Resolve: {option}
+                        {i === 0 && q.content.toLowerCase().includes("prefer")
+                          ? " (stated preference)"
+                          : ""}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {resolutions.map((r) => (
+                <div key={r.id} style={{ fontSize: 12, color: C.green, marginTop: 6 }}>
+                  Resolved by {r.authorName}: {r.content.slice(RESOLVED_PREFIX.length)}
+                </div>
+              ))}
+              {openQuestions.length > 0 && (
+                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                  <input
+                    value={resolveDraft}
+                    onChange={(e) => setResolveDraft(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && resolveQuestion(task, resolveDraft)}
+                    placeholder="Custom answer, e.g. Use seconds and document the format"
+                    style={{
+                      flex: 1,
+                      background: C.panel2,
+                      color: C.text,
+                      border: C.border,
+                      borderRadius: 6,
+                      padding: "6px 8px",
+                      fontSize: 12,
+                    }}
+                  />
+                  <button
+                    type="button"
+                    style={btn(true)}
+                    onClick={() => resolveQuestion(task, resolveDraft)}
+                  >
+                    Resolve question
+                  </button>
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: C.dim, marginTop: 6 }}>
+                Resolving records a human answer on the task. It does not sign off for any role —
+                each role still signs off in the Consensus Gate above.
+              </div>
+            </section>
+          )}
           <h3 style={{ fontSize: 13 }}>{task.title}</h3>
           <div
             style={{

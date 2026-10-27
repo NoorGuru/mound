@@ -23,8 +23,18 @@ export const DEMO_MEMBERS: Array<TeamMember> = [
 ];
 
 function buildHandoffPacket(task: SdlcTask, actor: TeamMember, at: string): HandoffPacket {
+  const lastResolvedAt = task.reviewComments.reduce(
+    (acc, comment, index) =>
+      !comment.isSteeringPrompt && comment.content.startsWith("Resolved: ") ? index : acc,
+    -1,
+  );
   const openQuestions = task.reviewComments
-    .filter((comment) => !comment.isSteeringPrompt)
+    .filter(
+      (comment, index) =>
+        !comment.isSteeringPrompt &&
+        !comment.content.startsWith("Resolved: ") &&
+        index > lastResolvedAt,
+    )
     .map((comment) => `${comment.authorName}: ${comment.content}`);
   const status = task.myrmex?.status ?? "idle";
   const suggestedNextStep =

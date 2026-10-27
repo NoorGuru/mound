@@ -1,5 +1,13 @@
 # Mound Memory
 
+## 2026-10-27 — Overnight iteration 11 (Product Council: Review Blocker Resolver)
+
+- Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B council via tagy (`/tmp/council11-tagy.md`) + Grok critique (`agent --model grok-4.7-high`).
+- Council winner: Cockpit Review Blocker Resolver (final 13) over Steering Playbook (10, honest chips duplicate the Spec Anchor) and Decision Ledger (5, coined ADR titles/statuses). Grok falsified tagy's draft mechanism: `deriveConsensus` blocked on ANY non-steering comment by the role, so a plain reply flipped nothing; shipped fix is an explicit `Resolved: ...` comment + unified `deriveOpenQuestions()` (open only when no later resolution answers it) driving Consensus Gate (Blocked -> Pending, never Approved), Review Inbox, Squadron HUD blockers, and web+server Handoff open questions. Presets are the alternatives named in the question (`Use seconds` / `Use HTTP date`); no RFC or rate numbers invented.
+- Built directly: Cockpit Review Blocker card (presets + custom answer + resolved state) in `MoundApp.tsx`, resolved-aware `buildHandoffPacket` in `colonyManager.ts`. No contract/RPC change.
+- Verification: typecheck 35/35, web build passed, colonyManager.test.ts 5/5, server probe `HANDOFF-RESOLVED-OK`, options probe `Use seconds`/`Use HTTP date`. First probe attempt used the wrong `updateTask` signature (whole task vs `(id, patch)`) and failed against the probe, not the product; corrected probe passed.
+- Next: Steering Playbook remains runner-up only if it stops duplicating the Spec Anchor; a live provider run still needs a project in the dev DB.
+
 ## 2026-10-27 — Overnight iteration 1 (Phases 1–6 core)
 
 - Pre-flight: repo needed Node 26.12.1 (system Node 22 fails Vite TS config load). Node 26 installed at `/tmp/node26`; bun at `~/.local/bin/bun`; pnpm deps installed. Typecheck 35/35 green, web build green before changes.
