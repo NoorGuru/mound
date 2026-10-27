@@ -1,5 +1,13 @@
 # Mound Memory
 
+## 2026-10-27 — Overnight iteration 21 (Product Council: Summon Provider Picker)
+
+- Pre-flight green: typecheck 35/35, web build passed, colonyManager.test.ts 8/8. All plan items [x] -> CASE B. Council: tagy 15/11/7 + Grok A 5/4/4 winner. Winner: Summon Provider Picker (final 14: 5/5/4) — verified gap: Phase 5.3 modal marked [x] but never built; `summon()` hardcoded `"Claude Code"` in local patch, activity string, and RPC input though contract/`ColonyManager.summonMyrmex`/`colonyProviderFor` carry a provider name end to end and seed MND-102 shows Codex. New Spec runner-up (needs selection state + link fixes, not just a composer); Delete rejected again (no RPC, resurrects).
+- Critique applied (Grok): stamp the chosen provider in all three places, not label-only; no instructions/mode fields (RPC cannot carry them); provider list = exactly the names `colonyProviderFor` maps, caption states the server's closest-enabled fallback.
+- Built (tagy reported `interrupted` but landed the complete edit; reviewed line-by-line): `SUMMON_PROVIDERS` chips + `summon(t, provider)` + overlay picker in `MoundApp.tsx`, opened from both Board-card and Acceptance-Matrix Summon buttons. No contract/server change.
+- Verification: typecheck 35/35, web build passed (picker strings in mound chunk), colonyManager.test.ts 8/8, probe `AFTER active Grok coding / SUMMON-PROVIDER-OK`, smoke `Gateway Foundations Colony 5`, lint 24 = untouched baseline (stash-verified), fmt applied. `.t3-verify/` churn reverted, not committed.
+- Next: New Spec / Spec Switcher is the standing runner-up; two-window visual check still not run; a live provider run still needs a project in the dev DB.
+
 ## 2026-10-27 — Overnight iteration 20 (Product Council: Task Note Composer)
 
 - Pre-flight green: typecheck 35/35, web build passed, colonyManager.test.ts 8/8. All plan items [x] -> CASE B. Council: tagy `interrupted`, Grok empty (known fallbacks); orchestrator council from source audit, disclosed in NIGHT_LOG. Winner: Task Note Composer (13: 5/3/5) — verified gap: Cockpit's only task-comment path was `sendSteer()` (steering, dispatches to Myrmex), so seeded-style human questions (non-steering) had no UI write path. Colony Brief rejected again (re-aggregation), Edit Task rejected (no downstream reaction).

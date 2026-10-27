@@ -260,6 +260,15 @@ const btn = (primary = false): React.CSSProperties => ({
   fontWeight: primary ? 700 : 500,
 });
 
+const SUMMON_PROVIDERS = [
+  "Claude Code",
+  "Codex",
+  "Cursor",
+  "Grok",
+  "OpenCode",
+  "Antigravity",
+] as const;
+
 type ReqStatus = "shipped" | "review" | "active" | "ready" | "unlinked";
 interface SpecRequirement {
   index: number;
@@ -716,6 +725,8 @@ export default function MoundApp() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDesc, setNewTaskDesc] = useState("");
   const [newTaskAssignee, setNewTaskAssignee] = useState(me.id);
+  const [summonTask, setSummonTask] = useState<SdlcTask | null>(null);
+  const [summonProvider, setSummonProvider] = useState<string>("Claude Code");
 
   const lastServerUpdatedAtRef = useRef<string | null>(null);
 
@@ -831,26 +842,26 @@ export default function MoundApp() {
     }
   };
 
-  const summon = (t: SdlcTask) => {
+  const summon = (t: SdlcTask, provider: string) => {
     const branchName = `feat/${t.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
     patchTask(
       t.id,
       {
         column: "active",
         myrmex: {
-          provider: "Claude Code",
+          provider,
           branchName,
           status: "coding",
           filesChanged: 0,
           lastAction: `Summoned by ${me.name} — planning first change…`,
         },
       },
-      mkActivity("myrmex_summoned", `Summoned Claude Code on ${t.id} (${branchName})`, t.id),
+      mkActivity("myrmex_summoned", `Summoned ${provider} on ${t.id} (${branchName})`, t.id),
     );
     if (environmentId !== null) {
       void runSummon({
         environmentId,
-        input: { taskId: t.id, provider: "Claude Code", actor: me },
+        input: { taskId: t.id, provider, actor: me },
       });
     }
   };
@@ -1828,7 +1839,14 @@ export default function MoundApp() {
                         {openCount > 0 ? ` · ${openCount} open` : ""}
                       </span>
                       {linked && req.status === "ready" && !linked.myrmex ? (
-                        <button type="button" style={btn(true)} onClick={() => summon(linked)}>
+                        <button
+                          type="button"
+                          style={btn(true)}
+                          onClick={() => {
+                            setSummonProvider("Claude Code");
+                            setSummonTask(linked);
+                          }}
+                        >
                           Summon Myrmex
                         </button>
                       ) : linked ? (
@@ -2603,7 +2621,8 @@ export default function MoundApp() {
                             style={btn(true)}
                             onClick={(e) => {
                               e.stopPropagation();
-                              summon(t);
+                              setSummonProvider("Claude Code");
+                              setSummonTask(t);
                             }}
                           >
                             Summon Myrmex
@@ -3398,6 +3417,123 @@ export default function MoundApp() {
             )}
           </section>
         </main>
+      )}
+      {summonTask !== null && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setSummonTask(null)}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.7)",
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#111317",
+              border: "1px solid rgba(255,255,255,0.07)",
+              borderRadius: 8,
+              padding: 18,
+              maxWidth: 480,
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              boxShadow: "0 16px 36px rgba(0,0,0,0.5)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span
+                style={{
+                  color: C.amber,
+                  fontWeight: 700,
+                  fontFamily: "monospace",
+                  fontSize: 13,
+                }}
+              >
+                {summonTask.id}
+              </span>
+              <span
+                style={{
+                  color: C.text,
+                  fontWeight: 600,
+                  fontSize: 13,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {summonTask.title}
+              </span>
+            </div>
+            <div>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: C.dim,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                  marginBottom: 8,
+                }}
+              >
+                Agent provider
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {SUMMON_PROVIDERS.map((p) => {
+                  const isSelected = summonProvider === p;
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setSummonProvider(p)}
+                      style={{
+                        ...btn(),
+                        background: isSelected ? "rgba(229, 124, 35, 0.12)" : C.panel2,
+                        border: isSelected ? "1px solid #E57C23" : C.border,
+                        color: isSelected ? "#E57C23" : C.text,
+                        fontWeight: isSelected ? 600 : 500,
+                      }}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <p style={{ margin: 0, fontSize: 11, color: C.dim, lineHeight: 1.4 }}>
+              Launches in an isolated worktree. If the pick is not enabled on this server, the
+              closest enabled provider is used.
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginTop: 4 }}>
+              <button type="button" style={btn()} onClick={() => setSummonTask(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                style={btn(true)}
+                onClick={() => {
+                  if (summonTask !== null) {
+                    summon(summonTask, summonProvider);
+                    setSummonTask(null);
+                  }
+                }}
+              >
+                Summon into Worktree
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
