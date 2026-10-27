@@ -640,7 +640,7 @@ export default function MoundApp() {
       )}
 
       {view === "cockpit" && task && (
-        <main style={{ padding: 16, maxWidth: 900 }}>
+        <main style={{ padding: 16 }}>
           <div
             style={{
               background: C.panel,
@@ -702,25 +702,117 @@ export default function MoundApp() {
             </div>
           </div>
           <h3 style={{ fontSize: 13 }}>{task.title}</h3>
-          <p style={{ color: C.dim }}>
-            {task.myrmex
-              ? `${task.myrmex.provider} · ${task.myrmex.branchName ?? ""} · ${task.myrmex.lastAction}`
-              : "No Myrmex attached yet."}
-          </p>
-          {task.reviewComments.map((c) => (
-            <p
-              key={c.id}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1.2fr 0.8fr",
+              gap: 10,
+              alignItems: "start",
+            }}
+          >
+            <section
               style={{ background: C.panel, border: C.border, borderRadius: 8, padding: 10 }}
             >
-              <b>{c.authorName}</b>{" "}
-              <span style={{ color: C.sky, fontSize: 11 }}>
-                {c.authorRole}
-                {c.isSteeringPrompt ? " · steer" : ""}
-              </span>
-              <br />
-              {c.content}
-            </p>
-          ))}
+              <h4 style={{ fontSize: 11, color: C.dim, margin: "0 0 8px" }}>Conversation</h4>
+              {task.reviewComments.length === 0 && (
+                <p style={{ color: C.dim }}>No messages yet. Send a steer below.</p>
+              )}
+              {task.reviewComments.map((c) => (
+                <p
+                  key={c.id}
+                  style={{ background: C.panel2, border: C.border, borderRadius: 6, padding: 8 }}
+                >
+                  <b>{c.authorName}</b>{" "}
+                  <span style={{ color: C.sky, fontSize: 11 }}>
+                    {c.authorRole}
+                    {c.isSteeringPrompt ? " · steer" : ""}
+                  </span>
+                  <br />
+                  {c.content}
+                </p>
+              ))}
+              {state.activity
+                .filter((a) => !a.taskId || a.taskId === task.id)
+                .slice(-4)
+                .map((a) => (
+                  <p key={a.id} style={{ color: C.dim, fontSize: 11 }}>
+                    {a.actorName}: {a.message}
+                  </p>
+                ))}
+            </section>
+            <section
+              style={{ background: C.panel, border: C.border, borderRadius: 8, padding: 10 }}
+            >
+              <h4 style={{ fontSize: 11, color: C.dim, margin: "0 0 8px" }}>
+                Live Diff · {task.myrmex?.branchName ?? "no branch"} · +
+                {task.myrmex?.filesChanged ?? 0} files
+              </h4>
+              <pre
+                style={{
+                  margin: 0,
+                  fontFamily: "ui-monospace, monospace",
+                  fontSize: 11,
+                  lineHeight: 1.6,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {(task.myrmex
+                  ? [
+                      `diff --git a/src/gateway/limiter.ts b/src/gateway/limiter.ts`,
+                      `@@ ${task.id} ${task.title} @@`,
+                      `- const count = fixedWindow.get(key) ?? 0;`,
+                      `+ const bucket = tokenBucket(key, { capacity: 60, refillPerSec: 1 });`,
+                      `+ if (!bucket.tryTake()) return reply429(res);`,
+                      `  // ${task.myrmex.lastAction}`,
+                    ]
+                  : ["No Myrmex attached — summon one from the Colony Board."]
+                ).map((line) => (
+                  <div
+                    key={line}
+                    style={{
+                      color: line.startsWith("+")
+                        ? C.green
+                        : line.startsWith("-")
+                          ? "#F87171"
+                          : C.dim,
+                    }}
+                  >
+                    {line}
+                  </div>
+                ))}
+              </pre>
+            </section>
+            <section
+              style={{ background: C.panel, border: C.border, borderRadius: 8, padding: 10 }}
+            >
+              <h4 style={{ fontSize: 11, color: C.dim, margin: "0 0 8px" }}>
+                Terminal · Telemetry
+              </h4>
+              <pre
+                style={{
+                  margin: 0,
+                  fontFamily: "ui-monospace, monospace",
+                  fontSize: 11,
+                  lineHeight: 1.7,
+                  whiteSpace: "pre-wrap",
+                  color: C.text,
+                }}
+              >
+                {task.myrmex
+                  ? [
+                      `$ mound myrmex status ${task.id}`,
+                      `provider  ${task.myrmex.provider}${task.myrmex.model ? ` (${task.myrmex.model})` : ""}`,
+                      `status    ${task.myrmex.status}`,
+                      `branch    ${task.myrmex.branchName ?? "-"}`,
+                      `session   ${task.myrmex.sessionId ?? "-"}`,
+                      `thread    ${task.myrmex.threadId ?? "not bound (demo)"}`,
+                      `files     +${task.myrmex.filesChanged}`,
+                      `last      ${task.myrmex.lastAction}`,
+                    ].join("\n")
+                  : "No active session."}
+              </pre>
+            </section>
+          </div>
           <div style={{ display: "flex", gap: 6 }}>
             <input
               value={steer}

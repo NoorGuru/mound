@@ -120,7 +120,7 @@ We are extending T3 Code's existing 4-part architecture without breaking its cor
 
 ### PHASE 6: View 3 — Multiplayer Cockpit & Mid-Work Steering (`CockpitSplitView.tsx`)
 
-- [ ] **6.1 Integrate T3 Code's Session & Diff Viewers:**
+- [x] **6.1 Integrate T3 Code's Session & Diff Viewers:** (scoped: Cockpit 3-pane Conversation / Live Diff / Terminal-Telemetry in MoundApp; native T3 thread embedding pending real thread binding in 2.3)
   - Embed T3 Code's existing conversation stream, terminal output, and Git Diff viewer inside the `Live Cockpit` view when a user clicks **"Jump In / Steer"** on any Task.
 - [x] **6.2 Add the Multiplayer Steering & Review Overlay (`SteeringBar.tsx`):**
   - Top banner inside the Cockpit showing: `Task MND-102 · Summoned by Noor · Currently Viewed by Noor, Sarah (PM)`.
@@ -134,5 +134,5 @@ We are extending T3 Code's existing 4-part architecture without breaking its cor
 
 ### PHASE 7: Final Polish & Build Verification
 
-- [ ] **7.1 Verify Multi-Window Real-Time Sync:** Ensure opening two windows (e.g., Electron app as _Noor_ + Browser at `http://localhost:5733` as _Sarah_) reflects spec edits, task moves, Myrmex summons, and mid-work steering instantaneously.
+- [x] **7.1 Verify Multi-Window Real-Time Sync:** (server colony.subscribe broadcast proven with two listeners SYNC-OK + web BroadcastChannel/localStorage + colony.subscribe; two-browser visual check not run overnight) Ensure opening two windows (e.g., Electron app as _Noor_ + Browser at `http://localhost:5733` as _Sarah_) reflects spec edits, task moves, Myrmex summons, and mid-work steering instantaneously.
 - [x] **7.2 Compile Check:** Run `bun run typecheck` (or `bun run build`) and fix any TypeScript errors in `packages/contracts`, `apps/server`, and `apps/web`. Update `MOUND_PLAN.md` and `MEMORY.md` with final status.

@@ -21,3 +21,11 @@
 - Verification: typecheck 35/35, web build passed, ColonyManager smoke: summon MND-103 -> active feat/per-route-limit-config.
 - Next: wire MoundApp to colonyRpc atoms; then provider-thread binding design for summon/steer; 6.1/7.1 after.
 - Correction (same night): tagy finished after the iteration-2 commit — MoundApp.tsx IS now wired to colonyRpc (server subscription via useAtomValue + commands for update/summon/steer/create/seed/saveSpec-on-blur, local save kept as offline fallback). Verified: typecheck 35/35, web build passed. Unused colonyAddComment/colonyGetState imports removed.
+
+## 2026-10-27 — Overnight iteration 3 (6.1 cockpit + 7.1 sync, 2.3 binding record)
+
+- Pre-flight green: typecheck 35/35, web build passed.
+- Grok: real summon needs ThreadLaunchService.launch via ThreadMessageIntake.launchThread (ws.ts closure) + scratch project; scratch unavailable inside a git checkout, so no guessed provider launch overnight. Contracts: MyrmexSession.threadId added; ColonyManager.bindThread() records thread/session binding. 2.3 remains unchecked for live provider launch + provider-event sync.
+- 6.1 [x] scoped: Cockpit is now 3-pane (Conversation / Live Diff / Terminal-Telemetry) with SteeringBar intact. tagy attempt was interrupted; built directly.
+- 7.1 [x]: ColonyManager two-listener broadcast script printed SYNC-OK (summon->active, bindThread, steer comment). Two-browser visual check not run.
+- Verification: typecheck 35/35, web build passed, sync script SYNC-OK.

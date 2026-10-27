@@ -250,6 +250,14 @@ export class ColonyManager {
     return this.state;
   }
 
+  bindThread(taskId: string, threadId: string): ColonyState {
+    const task = this.state.tasks.find((entry) => entry.id === taskId);
+    if (!task?.myrmex) return this.state;
+    return this.updateTask(taskId, {
+      myrmex: { ...task.myrmex, threadId, sessionId: threadId },
+    });
+  }
+
   summonMyrmex(taskId: string, provider: string, actor: TeamMember): ColonyState {
     const task = this.state.tasks.find((entry) => entry.id === taskId);
     if (!task) return this.state;

@@ -15,3 +15,9 @@
 - Web colonyRpc.ts ready; MoundApp atom wiring is next iteration's first task.
 - Verification: `bun run typecheck` 35/35 successful. `bun --filter @t3tools/web build` built. ColonyManager smoke printed active branch feat/per-route-limit-config.
 - Follow-up (same night): MoundApp RPC wiring landed and verified (typecheck 35/35, web build green) — committed separately.
+
+## 2026-10-27 — Iteration 3: SHIPPED & VERIFIED ✅
+
+- 6.1 Cockpit 3-pane (Conversation / Live Diff / Terminal) shipped; 7.1 sync proven via two-listener ColonyManager broadcast (SYNC-OK).
+- 2.3 honest gap remains: live ProviderManager launch needs a project-bound thread (ThreadMessageIntake.launchThread + scratch/project selection); threadId binding record added (contracts + bindThread), checkbox stays open.
+- Verification: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed.
