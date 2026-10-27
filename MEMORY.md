@@ -53,3 +53,11 @@
 - Built (tagy, reviewed): header Review Inbox button + amber count badge + dropdown in `MoundApp.tsx`, queue derived client-side from tasks (review column / unanswered non-steering comment / paused Myrmex), reason chips, latest open question, click selects task + opens Cockpit. No new contract/RPC needed.
 - Verification: typecheck 35/35, web build green, ColonyManager smoke printed inbox MND-102 (visible on first load).
 - Next: Conflict Radar still waits on real per-branch file lists; Swarm Mode is the runner-up candidate.
+
+## 2026-10-27 — Overnight iteration 7 (Product Council: Acceptance Matrix)
+
+- Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B council via tagy (`/tmp/council7.md`).
+- Council winner: Spec Acceptance & Traceability Matrix (15/15) over Consensus Gate (14) and Standup Digest (13); scoring in NIGHT_LOG.md.
+- tagy build calls interrupted twice with zero edits; built directly (same fallback as iterations 1/3). `MoundApp.tsx`: `deriveSpecMatrix()` (checkbox parse, distinct task link by word-overlap then ordinal, shipped/review/active/ready/unlinked), Acceptance Matrix panel in Specs view (counter, segmented bar, telemetry pills, Jump/Summon, Sync checkboxes via save + colonySaveSpec), Req N pill on Board cards -> Specs view. One typecheck fix: `ReadonlyArray<SdlcTask>` param.
+- Verification: typecheck 35/35, web build passed, ColonyManager smoke `Gateway Foundations Colony 5 5 reqs`, seed mapping probe Req1->MND-101 active, Req2->MND-102 review, Req3->MND-103 ready, Req4->MND-104 ready, Req5->MND-100 shipped (1 of 5 verified).
+- Next: Consensus Gate is runner-up; Conflict Radar still waits on real per-branch file lists.

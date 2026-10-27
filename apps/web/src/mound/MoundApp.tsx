@@ -207,6 +207,72 @@ const btn = (primary = false): React.CSSProperties => ({
   fontWeight: primary ? 700 : 500,
 });
 
+type ReqStatus = "shipped" | "review" | "active" | "ready" | "unlinked";
+interface SpecRequirement {
+  index: number;
+  text: string;
+  checked: boolean;
+  linkedTask: SdlcTask | null;
+  status: ReqStatus;
+}
+
+const reqWords = (value: string): Set<string> =>
+  new Set(
+    value
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((word) => word.length >= 3),
+  );
+
+function deriveSpecMatrix(
+  spec: ColonyState["specs"][number],
+  tasks: ReadonlyArray<SdlcTask>,
+): Array<SpecRequirement> {
+  const specTasks = tasks.filter((t) => !t.specId || t.specId === spec.id);
+  const used = new Set<string>();
+  const parsed: Array<SpecRequirement> = [];
+  for (const line of spec.content.split("\n")) {
+    const match = /-\s*\[([ xX])\]\s*(.+)/.exec(line.trim());
+    if (!match) continue;
+    const checked = (match[1] ?? " ").toLowerCase() === "x";
+    const text = (match[2] ?? "").trim();
+    const words = reqWords(text);
+    let best: SdlcTask | null = null;
+    let bestScore = 0;
+    for (const candidate of specTasks) {
+      if (used.has(candidate.id)) continue;
+      const candidateWords = reqWords(`${candidate.title} ${candidate.description}`);
+      let score = 0;
+      for (const word of words) if (candidateWords.has(word)) score += 1;
+      if (score > bestScore) {
+        bestScore = score;
+        best = candidate;
+      }
+    }
+    if (bestScore === 0) {
+      best =
+        specTasks[parsed.length] && !used.has(specTasks[parsed.length]!.id)
+          ? specTasks[parsed.length]!
+          : (specTasks.find((t) => !used.has(t.id)) ?? null);
+    }
+    if (best) used.add(best.id);
+    const status: ReqStatus =
+      best === null
+        ? "unlinked"
+        : best.column === "done" || checked
+          ? "shipped"
+          : best.column === "review" || best.myrmex?.status === "waiting_review"
+            ? "review"
+            : best.column === "active" ||
+                best.myrmex?.status === "coding" ||
+                best.myrmex?.status === "planning"
+              ? "active"
+              : "ready";
+    parsed.push({ index: parsed.length + 1, text, checked, linkedTask: best, status });
+  }
+  return parsed;
+}
+
 const EMPTY_NEVER_ATOM = Atom.make(() => AsyncResult.initial()).pipe(
   Atom.withLabel("mound:colony:never"),
 );
@@ -472,6 +538,30 @@ export default function MoundApp() {
         .map((t) => [t.id, t]),
     ).values(),
   );
+  const matrix = deriveSpecMatrix(spec, state.tasks);
+  const verifiedCount = matrix.filter((r) => r.status === "shipped").length;
+  const taskReqIndex = new Map(
+    matrix.filter((r) => r.linkedTask).map((r) => [r.linkedTask!.id, r.index]),
+  );
+  const syncCheckboxes = () => {
+    const shipped = new Set(matrix.filter((r) => r.status === "shipped").map((r) => r.text));
+    if (shipped.size === 0) return;
+    const content = spec.content
+      .split("\n")
+      .map((line) => {
+        const match = /-\s*\[ \]/.exec(line);
+        if (!match) return line;
+        const text = line.replace(/.*-\s*\[ \]\s*/, "").trim();
+        return shipped.has(text) ? line.replace("- [ ]", "- [x]") : line;
+      })
+      .join("\n");
+    if (content === spec.content) return;
+    const nextSpec = { ...spec, content, updatedAt: new Date().toISOString() };
+    save({ ...state, specs: state.specs.map((s) => (s.id === spec.id ? nextSpec : s)) });
+    if (environmentId !== null) {
+      void runSaveSpec({ environmentId, input: { spec: nextSpec } });
+    }
+  };
 
   return (
     <div
@@ -760,6 +850,166 @@ export default function MoundApp() {
               <h2 style={{ fontSize: 15, margin: 0 }}>{spec.title}</h2>
               <span style={{ color: C.green, fontSize: 11 }}>{spec.status}</span>
             </div>
+            <section
+              style={{
+                background: C.panel,
+                border: C.border,
+                borderRadius: 8,
+                padding: 12,
+                marginTop: 12,
+              }}
+            >
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <strong style={{ fontSize: 12 }}>Acceptance Matrix</strong>
+                <span style={{ color: C.dim, fontSize: 11, fontFamily: "ui-monospace, monospace" }}>
+                  {verifiedCount} of {matrix.length} verified
+                  {matrix.length > 0
+                    ? ` · ${Math.round((verifiedCount / matrix.length) * 100)}%`
+                    : ""}
+                </span>
+                <button
+                  type="button"
+                  style={{ ...btn(), marginLeft: "auto" }}
+                  onClick={syncCheckboxes}
+                >
+                  Sync checkboxes
+                </button>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  height: 6,
+                  borderRadius: 3,
+                  overflow: "hidden",
+                  background: C.panel2,
+                  marginTop: 10,
+                }}
+              >
+                {(
+                  [
+                    ["shipped", C.green],
+                    ["review", C.sky],
+                    ["active", C.amber],
+                    ["ready", "#2A2E36"],
+                    ["unlinked", "#2A2E36"],
+                  ] as Array<[ReqStatus, string]>
+                ).map(([status, color]) => {
+                  const count = matrix.filter((r) => r.status === status).length;
+                  if (count === 0 || matrix.length === 0) return null;
+                  return (
+                    <span
+                      key={status}
+                      style={{ width: `${(count / matrix.length) * 100}%`, background: color }}
+                    />
+                  );
+                })}
+              </div>
+              {matrix.length === 0 ? (
+                <p style={{ color: C.dim, fontSize: 12, margin: "10px 0 0" }}>
+                  No checklist requirements yet. Add - [ ] lines to the spec.
+                </p>
+              ) : (
+                matrix.map((req) => {
+                  const linked = req.linkedTask;
+                  const assignee = linked
+                    ? state.members.find((m) => m.id === linked.assigneeId)
+                    : undefined;
+                  const openCount =
+                    linked?.reviewComments.filter((c) => !c.isSteeringPrompt).length ?? 0;
+                  const pillColor =
+                    req.status === "shipped"
+                      ? C.green
+                      : req.status === "review"
+                        ? C.sky
+                        : req.status === "active"
+                          ? C.amber
+                          : C.dim;
+                  return (
+                    <div
+                      key={req.index}
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center",
+                        padding: "8px 0",
+                        borderTop: C.border,
+                        marginTop: 8,
+                      }}
+                    >
+                      <span
+                        style={{
+                          color: C.amber,
+                          fontSize: 11,
+                          fontFamily: "ui-monospace, monospace",
+                          fontWeight: 700,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Req {req.index}
+                      </span>
+                      <span style={{ flex: 1, fontSize: 12 }}>{req.text}</span>
+                      {linked ? (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontFamily: "ui-monospace, monospace",
+                            color: C.dim,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {linked.id}
+                          {assignee ? ` · ${assignee.name}` : ""}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 11, color: C.dim }}>No task yet</span>
+                      )}
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: pillColor,
+                          background: C.panel2,
+                          border: C.border,
+                          borderRadius: 4,
+                          padding: "2px 6px",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {req.status === "shipped"
+                          ? "Shipped"
+                          : req.status === "review"
+                            ? "In review"
+                            : req.status === "active"
+                              ? "Myrmex working"
+                              : req.status === "ready"
+                                ? "Ready"
+                                : "Unlinked"}
+                        {linked?.myrmex
+                          ? ` · ${linked.myrmex.provider} · ${linked.myrmex.status} · +${linked.myrmex.filesChanged} files`
+                          : ""}
+                        {openCount > 0 ? ` · ${openCount} open` : ""}
+                      </span>
+                      {linked && req.status === "ready" && !linked.myrmex ? (
+                        <button type="button" style={btn(true)} onClick={() => summon(linked)}>
+                          Summon Myrmex
+                        </button>
+                      ) : linked ? (
+                        <button
+                          type="button"
+                          style={btn()}
+                          onClick={() => {
+                            setSelected(linked.id);
+                            setView("cockpit");
+                          }}
+                        >
+                          Jump to Cockpit
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })
+              )}
+            </section>
             <textarea
               value={spec.content}
               onChange={(e) => save({ ...state, specs: [{ ...spec, content: e.target.value }] })}
@@ -869,6 +1119,29 @@ export default function MoundApp() {
                         }}
                       >
                         {t.id} {t.myrmex?.branchName ?? ""}
+                        {taskReqIndex.has(t.id) ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setView("specs");
+                            }}
+                            style={{
+                              marginLeft: 6,
+                              fontSize: 10,
+                              fontWeight: 700,
+                              color: C.amber,
+                              background: C.panel,
+                              border: C.border,
+                              borderRadius: 4,
+                              padding: "1px 5px",
+                              cursor: "pointer",
+                              fontFamily: "ui-monospace, monospace",
+                            }}
+                          >
+                            Req {taskReqIndex.get(t.id)}
+                          </button>
+                        ) : null}
                       </div>
                       <div style={{ fontWeight: 600, margin: "4px 0" }}>{t.title}</div>
                       <div style={{ color: C.dim, fontSize: 12 }}>{t.description}</div>

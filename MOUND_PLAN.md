@@ -144,3 +144,7 @@ We are extending T3 Code's existing 4-part architecture without breaking its cor
 ### PHASE 9: Product Council Winner — Review Inbox (2026-10-27 iteration 6)
 
 - [x] **9.1 Review Inbox:** Header "Review Inbox" button with amber count badge and dropdown queue derived from colony state (task in `review`, unanswered non-steering comment, or paused Myrmex), reason chips + latest open question per row, click jumps to the task in the Live Cockpit. Pure client derivation over existing state/RPCs (no new contract), seeded visible on MND-102. Council scoring logged in `NIGHT_LOG.md`.
+
+### PHASE 10: Product Council Winner — Spec Acceptance Matrix (2026-10-27 iteration 7)
+
+- [x] **10.1 Acceptance Matrix:** Specs view parses `- [ ]` requirements, links each to a distinct task (word-overlap, ordinal fallback), shows verified counter + segmented progress bar, per-requirement telemetry/status pill, Jump to Cockpit / Summon Myrmex actions, Sync checkboxes (shipped -> `- [x]` via save + `colony.saveSpec`), and Req N pills on Board cards. Pure client derivation, no new contract. Seeded visible: Req1 MND-101 active, Req2 MND-102 review, Req3/4 ready, Req5 MND-100 shipped (1 of 5 verified). Council scoring in `NIGHT_LOG.md`.

@@ -46,3 +46,12 @@
   4. PM Live Diff Summary Card (10): 3/4/3. Overlaps the shipped Handoff Packet; a real summary needs a provider call over a real diff.
 - Built the winner (tagy, reviewed locally): "Review Inbox" header button with amber count badge and dropdown panel in `MoundApp.tsx`; rows show task id, title, assignee, reason chips (In review / Open question / Paused) and the latest open question; clicking a row selects the task and opens the Live Cockpit. Empty state: "All clear — nothing waiting on review." No contract or server change required.
 - Verification: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed, ColonyManager smoke printed `inbox: MND-102` (queue visible on first load from the existing seed).
+
+## 2026-10-27 — Iteration 7 (Product Council, CASE B): SHIPPED & VERIFIED ✅
+
+- Council candidates scored (Alignment / Visual-Demo / Self-contained, /5 each, full text in `/tmp/council7.md`):
+  1. **Spec Acceptance & Traceability Matrix (WINNER, 15):** parses spec `- [ ]` requirements, links each to a live task, shows execution status in the Specs view. 5/5/5: closes the Spec -> Board -> Cockpit loop, turns the dead spec editor into mission control, derived entirely from existing ColonyState.
+  2. Multi-Role Consensus Gate (14): 5/5/4. Cockpit sign-off strip (Eng/PM/Reviewer) gating merge; durable per-role approvals need a comment-tag convention or new schema field.
+  3. Colony Standup & Release Digest (13): 4/4/5. Copyable overnight digest from tasks/activity; async reporting, less real-time multiplayer.
+- Built the winner: `deriveSpecMatrix()` + Acceptance Matrix panel in `MoundApp.tsx` Specs view (verified counter, segmented emerald/sky/amber/carbon progress bar, Req rows with linked task, assignee, provider/status/files/open-question pill, Jump to Cockpit / Summon Myrmex, Sync checkboxes writing `- [x]` for shipped requirements via local save + `colony.saveSpec`), Req N pill on Board cards jumping to Specs. No contract or server change. tagy council succeeded; tagy build interrupted twice (no edits), so built directly and reviewed locally.
+- Verification: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed (matrix code in `_chat.mound` chunk), ColonyManager smoke `Gateway Foundations Colony 5 5 reqs`, mapping probe on seed: Req1->MND-101 active, Req2->MND-102 review, Req3->MND-103 ready, Req4->MND-104 ready, Req5->MND-100 shipped = 1 of 5 verified on first load.
