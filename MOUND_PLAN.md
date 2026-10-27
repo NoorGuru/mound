@@ -63,18 +63,18 @@ We are extending T3 Code's existing 4-part architecture without breaking its cor
 
 ### PHASE 1: Codebase Audit & Shared Contracts (`packages/contracts`)
 
-- [ ] **1.1 Inspect Existing Contracts:** Read `packages/contracts` to locate the WebSocket RPC method definitions, Zod schemas, and push event types.
-- [ ] **1.2 Define Colony & SDLC Schemas:** Create `packages/contracts/src/colony.ts` (and export from index) with Zod schemas for:
+- [x] **1.1 Inspect Existing Contracts:** Read `packages/contracts` to locate the WebSocket RPC method definitions, Zod schemas, and push event types.
+- [x] **1.2 Define Colony & SDLC Schemas:** Create `packages/contracts/src/colony.ts` (and export from index) with Zod schemas for:
   - `TeamMember`: `{ id, name, role: 'eng' | 'pm' | 'reviewer', avatarColor, status: 'online' | 'reviewing' }`
   - `ProductSpec`: `{ id, title, content, authorId, status: 'draft' | 'approved', comments: SpecComment[], updatedAt }`
   - `SdlcTask`: `{ id, specId?, title, description, column: 'todo' | 'active' | 'review' | 'done', assigneeId, myrmex?: { provider: string, model?: string, sessionId?: string, branchName?: string, status: 'idle' | 'planning' | 'coding' | 'waiting_review' | 'paused' | 'completed', filesChanged: number, lastAction: string }, reviewComments: MidWorkComment[], updatedAt }`
   - `MidWorkComment`: `{ id, taskId, authorId, authorName, authorRole, content, filePath?, lineNumber?, isSteeringPrompt: boolean, createdAt }`
-- [ ] **1.3 Register RPC Methods:** Add `colony.*` methods and the `colony:updated` push event to the shared contract union so both `apps/server` and `apps/web` have end-to-end TypeScript autocompletion.
+- [x] **1.3 Register RPC Methods:** Add `colony.*` methods and the `colony:updated` push event to the shared contract union so both `apps/server` and `apps/web` have end-to-end TypeScript autocompletion.
 
 ### PHASE 2: Multiplayer Colony Engine (`apps/server`)
 
-- [ ] **2.1 Build `ColonyManager` Service:** Create `apps/server/src/colonyManager.ts` with automatic load/save to `path.join(stateDir, 'mound-colony.json')`.
-- [ ] **2.2 Pre-load Rich Demo Seed Data:** Implement `seedDemoColony()` inside `ColonyManager` with:
+- [x] **2.1 Build `ColonyManager` Service:** Create `apps/server/src/colonyManager.ts` with automatic load/save to `path.join(stateDir, 'mound-colony.json')`.
+- [x] **2.2 Pre-load Rich Demo Seed Data:** Implement `seedDemoColony()` inside `ColonyManager` with:
   - 3 Team Members: **Noor** (Staff Engineer), **Sarah** (Product Manager), **Alex** (Platform Reviewer).
   - 1 Realistic Spec: _"Edge Gateway Rate-Limiting & Token Bucket Migration"_ with structured requirements and PM/Eng comments.
   - 5 Tasks across columns (including an active Myrmex working on `feat/token-bucket-middleware`, a task paused in `Mid-Work Review` with a PM question, and a completed task).
@@ -87,8 +87,8 @@ We are extending T3 Code's existing 4-part architecture without breaking its cor
 
 ### PHASE 3: Rebranding & Native macOS Shell (`apps/web` & `apps/desktop`)
 
-- [ ] **3.1 Apply Mound Design Tokens:** Update global CSS / Tailwind theme in `apps/web` with the deep carbon palette (`#0B0C0E`, `#111317`), hairline borders, Mound Amber (`#E57C23`) accents, and sharp typography.
-- [ ] **3.2 Build the Mound Top Command Bar (`MoundHeader.tsx`):**
+- [x] **3.1 Apply Mound Design Tokens:** Update global CSS / Tailwind theme in `apps/web` with the deep carbon palette (`#0B0C0E`, `#111317`), hairline borders, Mound Amber (`#E57C23`) accents, and sharp typography.
+- [x] **3.2 Build the Mound Top Command Bar (`MoundHeader.tsx`):**
   - Left: **MOUND** geometric icon + active Colony badge (`Gateway Foundations Colony`) + live pulse indicator (`3 Humans · 2 Myrmex Active`).
   - Center: Segmented View Switcher (`1. Specs & Plan`, `2. Colony Board`, `3. Live Cockpit`) with keyboard shortcut badges (`⌘1`, `⌘2`, `⌘3`).
   - Right:
@@ -99,40 +99,40 @@ We are extending T3 Code's existing 4-part architecture without breaking its cor
 
 ### PHASE 4: View 1 — Multiplayer Specs & Task Breakdown (`SpecsView.tsx`)
 
-- [ ] **4.1 Build Split Spec Studio:**
+- [x] **4.1 Build Split Spec Studio:**
   - Left Pane: Spec list + clean Markdown Spec Editor with status badge (`Draft` / `Approved for Execution`) and author pill.
   - Right Pane: Team Discussion & Spec Alignment thread where PM and Engineers leave comments tagged with their Role badges.
-- [ ] **4.2 Build "Break Spec into Tasks" Generator:**
+- [x] **4.2 Build "Break Spec into Tasks" Generator:**
   - Add a primary Mound Amber button: **"Extract Tasks to Colony Board"**.
   - Parses markdown action items / sections (or triggers a fast agent turn) to generate structured `SdlcTask` cards directly onto the Colony Board with suggested Myrmex roles (e.g., _API Implementation_, _Middleware Refactor_, _Edge Case Verification_), then smoothly switches to the Colony Board view.
 
 ### PHASE 5: View 2 — The Colony Board & Summoning (`ColonyBoardView.tsx`)
 
-- [ ] **5.1 Build 4-Column High-Density SDLC Board:**
+- [x] **5.1 Build 4-Column High-Density SDLC Board:**
   - Columns: `Ready` -> `Active (Myrmex Working)` -> `Mid-Work Review` -> `Shipped`.
   - Include a top filter bar: `All Tasks`, `My Tasks`, `Active Myrmex Only`, `Needs My Review`.
-- [ ] **5.2 Design Rich Task Cards (`TaskCard.tsx`):**
+- [x] **5.2 Design Rich Task Cards (`TaskCard.tsx`):**
   - Shows Task ID (`MND-104`), title, human assignee avatar, and git branch pill (`feat/rate-limit`).
   - **If No Myrmex Attached:** Shows a crisp **"⚡ Summon Myrmex"** button on hover/footer.
   - **If Myrmex Attached:** Shows an animated amber telemetry bar with Provider/Model badge (`Claude Code` / `Codex`), current step (`Editing src/gateway/limiter.ts...`), file change counter (`+4 files`), and a **"Jump In / Steer →"** button.
-- [ ] **5.3 Build the "Summon Myrmex" Modal (`SummonModal.tsx`):**
+- [x] **5.3 Build the "Summon Myrmex" Modal (`SummonModal.tsx`):**
   - Allows any team member to pick the Agent Provider (Claude, Codex, Cursor, OpenCode, etc. from T3 Code's configured providers), Execution Mode (`Supervised - Pause at Checkpoints` vs `Full Autonomy`), and custom instructions before clicking **"Summon into Worktree"**.
 
 ### PHASE 6: View 3 — Multiplayer Cockpit & Mid-Work Steering (`CockpitSplitView.tsx`)
 
 - [ ] **6.1 Integrate T3 Code's Session & Diff Viewers:**
   - Embed T3 Code's existing conversation stream, terminal output, and Git Diff viewer inside the `Live Cockpit` view when a user clicks **"Jump In / Steer"** on any Task.
-- [ ] **6.2 Add the Multiplayer Steering & Review Overlay (`SteeringBar.tsx`):**
+- [x] **6.2 Add the Multiplayer Steering & Review Overlay (`SteeringBar.tsx`):**
   - Top banner inside the Cockpit showing: `Task MND-102 · Summoned by Noor · Currently Viewed by Noor, Sarah (PM)`.
   - Action buttons right above the prompt input:
     - **`⏸ Pause & Steer Myrmex`**: Interrupts the running turn and focuses the steering input.
     - **`👋 Ping PM / Request Mid-Work Review`**: Moves the task to `Mid-Work Review` and highlights it in sky-blue across every teammate's board.
     - **`✅ Approve & Merge Worktree`**: Marks the task `Shipped` and triggers T3 Code's commit/PR flow.
-- [ ] **6.3 Inline Diff & Mid-Work Comment Feed:**
+- [x] **6.3 Inline Diff & Mid-Work Comment Feed:**
   - Allow the Reviewer or PM to type a steering note (e.g., _"Use Redis sliding window instead of fixed counter, and return HTTP 429 with Retry-After header"_).
   - Clicking **"Send & Steer Myrmex"** logs the comment with the reviewer's badge AND immediately dispatches it as the next turn to T3 Code's underlying agent session.
 
 ### PHASE 7: Final Polish & Build Verification
 
 - [ ] **7.1 Verify Multi-Window Real-Time Sync:** Ensure opening two windows (e.g., Electron app as _Noor_ + Browser at `http://localhost:5733` as _Sarah_) reflects spec edits, task moves, Myrmex summons, and mid-work steering instantaneously.
-- [ ] **7.2 Compile Check:** Run `bun run typecheck` (or `bun run build`) and fix any TypeScript errors in `packages/contracts`, `apps/server`, and `apps/web`. Update `MOUND_PLAN.md` and `MEMORY.md` with final status.
+- [x] **7.2 Compile Check:** Run `bun run typecheck` (or `bun run build`) and fix any TypeScript errors in `packages/contracts`, `apps/server`, and `apps/web`. Update `MOUND_PLAN.md` and `MEMORY.md` with final status.
