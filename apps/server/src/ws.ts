@@ -2395,6 +2395,8 @@ export const layerWsRpc = (
           Effect.sync(() => colony.addComment(input.taskId, input.comment)),
         [WS_METHODS.colonyCreateHandoff]: (input) =>
           Effect.sync(() => colony.createHandoff(input.taskId, input.actor)),
+        [WS_METHODS.colonyAnnouncePresence]: (input) =>
+          Effect.sync(() => colony.announcePresence(input.member, input.taskId)),
         [WS_METHODS.colonySeedDemo]: (_input) => Effect.sync(() => colony.seedDemo()),
         [WS_METHODS.colonySubscribe]: (_input) =>
           Stream.callback<ColonyState>(

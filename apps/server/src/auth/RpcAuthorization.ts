@@ -220,6 +220,7 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.colonySteerSession]: AuthOrchestrationOperateScope,
   [WS_METHODS.colonyAddComment]: AuthOrchestrationOperateScope,
   [WS_METHODS.colonyCreateHandoff]: AuthOrchestrationOperateScope,
+  [WS_METHODS.colonyAnnouncePresence]: AuthOrchestrationOperateScope,
   [WS_METHODS.colonySeedDemo]: AuthOrchestrationOperateScope,
 } as const satisfies Readonly<Record<WsRpcMethod, AuthEnvironmentScope>>;
 

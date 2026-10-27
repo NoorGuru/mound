@@ -145,12 +145,22 @@ export const ActivityEvent = Schema.Struct({
 });
 export type ActivityEvent = typeof ActivityEvent.Type;
 
+export const TaskPresence = Schema.Struct({
+  memberId: TrimmedNonEmptyString,
+  memberName: TrimmedNonEmptyString,
+  role: ColonyMemberRole,
+  taskId: Schema.optional(TrimmedNonEmptyString),
+  updatedAt: Schema.String,
+});
+export type TaskPresence = typeof TaskPresence.Type;
+
 export const ColonyState = Schema.Struct({
   colonyName: TrimmedNonEmptyString,
   members: Schema.Array(TeamMember),
   specs: Schema.Array(ProductSpec),
   tasks: Schema.Array(SdlcTask),
   activity: Schema.Array(ActivityEvent),
+  presence: Schema.optional(Schema.Array(TaskPresence)),
   updatedAt: Schema.String,
 });
 export type ColonyState = typeof ColonyState.Type;
@@ -191,6 +201,12 @@ export const ColonyCreateHandoffInput = Schema.Struct({
 });
 export type ColonyCreateHandoffInput = typeof ColonyCreateHandoffInput.Type;
 
+export const ColonyAnnouncePresenceInput = Schema.Struct({
+  member: TeamMember,
+  taskId: Schema.optional(TrimmedNonEmptyString),
+});
+export type ColonyAnnouncePresenceInput = typeof ColonyAnnouncePresenceInput.Type;
+
 export const ColonyRpcMethods = [
   "colony.getState",
   "colony.saveSpec",
@@ -200,6 +216,7 @@ export const ColonyRpcMethods = [
   "colony.steerSession",
   "colony.addComment",
   "colony.createHandoff",
+  "colony.announcePresence",
   "colony.seedDemo",
   "colony.subscribe",
 ] as const;

@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePrimaryEnvironmentId } from "../state/environments";
 import { useAtomCommand } from "../state/use-atom-command";
 import {
+  colonyAnnouncePresence,
   colonyCreateHandoff,
   colonyCreateTask,
   colonySaveSpec,
@@ -415,6 +416,35 @@ function deriveConsensus(task: SdlcTask, members: ReadonlyArray<TeamMember>): Ta
   };
 }
 
+export const PRESENCE_TTL_MS = 45_000;
+
+function deriveTaskViewers(
+  state: ColonyState,
+  taskId: string,
+  me: TeamMember,
+  inCockpit: boolean,
+): Array<{ memberId: string; memberName: string; role: ColonyMemberRole; isMe: boolean }> {
+  const cutoff = Date.now() - PRESENCE_TTL_MS;
+  const byMember = new Map<
+    string,
+    { memberId: string; memberName: string; role: ColonyMemberRole; isMe: boolean }
+  >();
+  for (const entry of state.presence ?? []) {
+    if (entry.taskId !== taskId || Date.parse(entry.updatedAt) < cutoff) continue;
+    byMember.set(entry.memberId, {
+      memberId: entry.memberId,
+      memberName: entry.memberName,
+      role: entry.role,
+      isMe: entry.memberId === me.id,
+    });
+  }
+  // Offline/local mode has no server presence; the only honest viewer is me.
+  if (inCockpit && !byMember.has(me.id)) {
+    byMember.set(me.id, { memberId: me.id, memberName: me.name, role: me.role, isMe: true });
+  }
+  return [...byMember.values()];
+}
+
 interface LiveMyrmexPairing {
   taskId: string;
   taskTitle: string;
@@ -562,6 +592,7 @@ export default function MoundApp() {
   const runSummon = useAtomCommand(colonySummonMyrmex, { reportFailure: false });
   const runSteer = useAtomCommand(colonySteerSession, { reportFailure: false });
   const runCreateHandoff = useAtomCommand(colonyCreateHandoff, { reportFailure: false });
+  const runAnnouncePresence = useAtomCommand(colonyAnnouncePresence, { reportFailure: false });
   const runSeedDemo = useAtomCommand(colonySeedDemo, { reportFailure: false });
 
   const serverColony = useAtomValue(
@@ -634,6 +665,31 @@ export default function MoundApp() {
       bc?.close();
     };
   }, []);
+
+  const { id: meId, name: meName, role: meRole, avatarColor: meColor, status: meStatus } = me;
+  // oxlint-disable-next-line t3code/react-effect-budget -- live presence heartbeat to server
+  useEffect(() => {
+    if (environmentId === null) return;
+    const member: TeamMember = {
+      id: meId,
+      name: meName,
+      role: meRole,
+      avatarColor: meColor,
+      status: meStatus,
+    };
+    const announce = () =>
+      void runAnnouncePresence({
+        environmentId,
+        input: {
+          member,
+          ...(view === "cockpit" ? { taskId: selected } : {}),
+        },
+      });
+    announce();
+    const timer = setInterval(announce, 20_000);
+    return () => clearInterval(timer);
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- command fn is recreated per render by useAtomCommand; member primitives carry identity
+  }, [environmentId, meId, meName, meRole, meColor, meStatus, view, selected]);
 
   const patchTask = (id: string, patch: Partial<SdlcTask>) => {
     let mergedTask: SdlcTask | undefined;
@@ -2078,8 +2134,12 @@ export default function MoundApp() {
               padding: 12,
             }}
           >
-            Task {task.id} · Summoned by {me.name} · Viewed by{" "}
-            {state.members.map((m) => m.name).join(", ")}
+            Task {task.id} · Assignee{" "}
+            {state.members.find((m) => m.id === task.assigneeId)?.name ?? task.assigneeId} · Viewing
+            now:{" "}
+            {deriveTaskViewers(state, task.id, me, true)
+              .map((v) => (v.isMe ? `${v.memberName} (you)` : `${v.memberName} (${v.role})`))
+              .join(", ")}
             <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
               <select
                 value={task.id}

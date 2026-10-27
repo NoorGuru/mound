@@ -55,6 +55,11 @@ export const colonyCreateHandoff = createEnvironmentRpcCommand(connectionAtomRun
   tag: WS_METHODS.colonyCreateHandoff,
 });
 
+export const colonyAnnouncePresence = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "mound:colony:announce-presence",
+  tag: WS_METHODS.colonyAnnouncePresence,
+});
+
 export const colonySeedDemo = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "mound:colony:seed-demo",
   tag: WS_METHODS.colonySeedDemo,

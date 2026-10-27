@@ -1,5 +1,15 @@
 # Night Log
 
+## 2026-10-27 — Iteration 12 (Product Council, CASE B): SHIPPED & VERIFIED ✅
+
+- Pre-flight green on the untouched tree; all plan items [x], so ran the Product Council. tagy errored `interrupted` twice (known fallback, same as iterations 1/3/7); Grok council ran in compact form (long prompts return empty on this box).
+- Council candidates (Alignment / Visual-Demo / Self-contained, /5 each; final after critique):
+  1. **Live Presence (WINNER, 5/4/4; Grok 5/3/3):** the Cockpit banner falsely claimed "Summoned by {whoever is viewing}" and listed every member as a viewer. Now the server tracks real announcements (`memberId + taskId + lastSeen`, 45s expiry) and the banner shows the assignee plus actual viewers. Grok: "the only proposal that removes a false on-screen claim."
+  2. Your Turn, role-scoped header queue (3/2/5 per Grok): honest derivation, but duplicates the Review Inbox queue and Squadron HUD pending chips; all three roles land on MND-102 at first paint, a second copy of the Inbox row.
+  3. Status Lie, column vs Myrmex status mismatch flags (2/1/5): seed is fully consistent (MND-101 active/coding, MND-102 review/waiting_review, MND-100 done/completed), so first load is an empty "all consistent" state, and paused-in-review is legitimate, not a lie. Also rejected from the same Grok round: File Collision Lock (treats `filesChanged` counts as file paths — the banned Conflict Radar defect) and Unsigned Done (MND-100 carries 3 approvals; zero first-load rows).
+- Built: `TaskPresence`, optional `ColonyState.presence`, `colony.announcePresence` RPC with operate scope (contracts, WS handler, auth, instrumentation, client guard); `ColonyManager.announcePresence()` upserts one entry per member, `getState()` prunes entries older than 45s, presence is stripped from `mound-colony.json` on write and dropped on load so stale viewers never resurrect. Web announces the selected Cockpit task on a 20s heartbeat and renders `Viewing now:` from `deriveTaskViewers()`; with no server, the banner honestly shows only the current member.
+- Verification: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed, `vp test run apps/server/src/colonyManager.test.ts` 6/6 (new presence test failed before the fix with `announcePresence is not a function`), probe `VIEWERS Noor,Sarah`, `PERSISTED_PRESENCE_LEN 0`, `LOADED_PRESENCE_LEN 0`, `PRESENCE-OK`; lint at the pre-existing MoundApp baseline with 0 errors on the other touched files, format clean. First-load demo: open the Live Cockpit on MND-102 as Noor to see "Viewing now: Noor (you)"; open a second window as Sarah on the same task and both banners show both viewers.
+
 ## 2026-10-27 — Iteration 11 (Product Council, CASE B): SHIPPED & VERIFIED ✅
 
 - Pre-flight green: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed on the untouched tree. All plan items were [x], so ran the Product Council with both delegates (tagy full text in `/tmp/council11-tagy.md`, Grok via `agent --model grok-4.7-high`).

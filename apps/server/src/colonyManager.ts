@@ -9,10 +9,19 @@ import type {
   MyrmexSession,
   ProductSpec,
   SdlcTask,
+  TaskPresence,
   TeamMember,
 } from "@t3tools/contracts";
 
 const now = () => new Date().toISOString();
+export const PRESENCE_TTL_MS = 45_000;
+
+function prunePresence(
+  entries: ReadonlyArray<TaskPresence> | undefined,
+  atMs: number,
+): Array<TaskPresence> {
+  return (entries ?? []).filter((entry) => atMs - Date.parse(entry.updatedAt) < PRESENCE_TTL_MS);
+}
 const uid = (prefix: string) =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -67,6 +76,7 @@ export function seedDemoColony(): ColonyState {
   const at = now();
   return {
     colonyName: "Gateway Foundations Colony",
+    presence: [],
     members: DEMO_MEMBERS,
     specs: [
       {
@@ -273,7 +283,9 @@ export class ColonyManager {
   private load(): ColonyState | null {
     if (!this.filePath) return null;
     try {
-      return JSON.parse(NodeFS.readFileSync(this.filePath, "utf8")) as ColonyState;
+      const parsed = JSON.parse(NodeFS.readFileSync(this.filePath, "utf8")) as ColonyState;
+      // Presence is live-only; a persisted viewer list would be stale on boot.
+      return { ...parsed, presence: [] };
     } catch {
       return null;
     }
@@ -284,7 +296,10 @@ export class ColonyManager {
     if (this.filePath) {
       try {
         NodeFS.mkdirSync(NodePath.dirname(this.filePath), { recursive: true });
-        NodeFS.writeFileSync(this.filePath, JSON.stringify(this.state, null, 2));
+        NodeFS.writeFileSync(
+          this.filePath,
+          JSON.stringify({ ...this.state, presence: [] }, null, 2),
+        );
       } catch {
         // Demo persistence is best-effort; in-memory state stays authoritative.
       }
@@ -299,6 +314,31 @@ export class ColonyManager {
   }
 
   getState(): ColonyState {
+    const presence = prunePresence(this.state.presence, Date.now());
+    return presence.length === (this.state.presence?.length ?? 0)
+      ? this.state
+      : { ...this.state, presence };
+  }
+
+  announcePresence(member: TeamMember, taskId: string | undefined): ColonyState {
+    const atMs = Date.now();
+    const rest = prunePresence(this.state.presence, atMs).filter(
+      (entry) => entry.memberId !== member.id,
+    );
+    this.state = {
+      ...this.state,
+      presence: [
+        ...rest,
+        {
+          memberId: member.id,
+          memberName: member.name,
+          role: member.role,
+          ...(taskId === undefined ? {} : { taskId }),
+          updatedAt: new Date(atMs).toISOString(),
+        },
+      ],
+    };
+    this.persist();
     return this.state;
   }
 

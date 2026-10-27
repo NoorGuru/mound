@@ -78,6 +78,28 @@ describe("ColonyManager provider binding", () => {
     assert.strictEqual(ready?.approvals, undefined);
   });
 
+  it("tracks live presence per task and moves viewers between tasks", () => {
+    const colony = new ColonyManager();
+    const sarah = { ...actor, id: "sarah", name: "Sarah", role: "pm" as const };
+    colony.announcePresence(actor, "MND-102");
+    const both = colony.announcePresence(sarah, "MND-102");
+    assert.deepStrictEqual(
+      both.presence?.map((p) => `${p.memberId}@${p.taskId}`),
+      ["noor@MND-102", "sarah@MND-102"],
+    );
+    const moved = colony.announcePresence(actor, "MND-101");
+    assert.deepStrictEqual(
+      moved.presence?.map((p) => `${p.memberId}@${p.taskId}`),
+      ["sarah@MND-102", "noor@MND-101"],
+    );
+    const cleared = colony.announcePresence(actor, undefined);
+    assert.deepStrictEqual(
+      cleared.presence?.map((p) => p.memberId),
+      ["sarah", "noor"],
+    );
+    assert.strictEqual(cleared.presence?.find((p) => p.memberId === "noor")?.taskId, undefined);
+  });
+
   it("ignores provider events for unbound threads", () => {
     const colony = new ColonyManager();
     const before = colony.getState();

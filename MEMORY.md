@@ -1,5 +1,13 @@
 # Mound Memory
 
+## 2026-10-27 — Overnight iteration 12 (Product Council: Live Presence)
+
+- Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B. tagy council calls errored `interrupted` twice (known fallback); Grok council ran compact (long prompts return empty). Grok candidates: File Collision Lock (rejected: `filesChanged` is a count, not paths — banned Conflict Radar defect), Status Lie (rejected: seed has zero column/status mismatches, flags legitimate paused-in-review), Unsigned Done (rejected: MND-100 has 3 approvals, zero first-load). Winner: Live Presence (final Alignment 5 / Visual 4 / Self-contained 4; Grok 5/3/3, winner as only proposal removing a false on-screen claim).
+- Defect fixed: Cockpit banner claimed `Summoned by {viewing member}` and listed ALL members as viewers. No summoner field exists; banner now shows honest `Assignee {name}` + actual viewers.
+- Built: `TaskPresence` + optional `ColonyState.presence` + `colony.announcePresence` (contracts, rpc, auth operate, instrumentation, client guard), `ColonyManager.announcePresence()` (upsert, 45s prune in `getState()`, presence stripped on persist/load), web announce heartbeat 20s in Cockpit + `deriveTaskViewers()` (offline shows only self). Focused test failed first (`announcePresence is not a function`), then passed.
+- Verification: typecheck 35/35, web build passed, colonyManager.test.ts 6/6, probe `VIEWERS Noor,Sarah / PERSISTED_PRESENCE_LEN 0 / LOADED_PRESENCE_LEN 0 / PRESENCE-OK`, lint at pre-existing baseline (19 on MoundApp, 0 on other touched files), fmt clean.
+- Next: two-window visual check of presence still not run; a live provider run still needs a project in the dev DB.
+
 ## 2026-10-27 — Overnight iteration 11 (Product Council: Review Blocker Resolver)
 
 - Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B council via tagy (`/tmp/council11-tagy.md`) + Grok critique (`agent --model grok-4.7-high`).
