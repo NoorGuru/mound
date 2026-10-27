@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "pid": 260369,
+  "pid": 279134,
   "port": 13773,
   "origin": "http://127.0.0.1:13773",
   "devUrl": "http://localhost:5733/",
-  "startedAt": "2026-10-27T02:52:55.308Z",
+  "startedAt": "2026-10-27T04:03:30.141Z",
   "serverVersion": "0.1.2",
-  "ownerId": "c8621c53-db6d-4f19-b3b1-88bc32a72a4e"
+  "ownerId": "5c1dd05a-9172-423b-8081-61af059a0351"
 }

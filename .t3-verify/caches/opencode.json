@@ -12,13 +12,13 @@
     "canAuthenticate": false,
     "canInstall": false
   },
-  "checkedAt": "2026-10-27T02:52:54.981Z",
+  "checkedAt": "2026-10-27T04:03:29.799Z",
   "message": "OpenCode is disabled in T3 Code settings.",
   "models": [],
   "slashCommands": [],
   "skills": [],
   "usageLimits": {
-    "checkedAt": "2026-10-27T02:52:54.981Z",
+    "checkedAt": "2026-10-27T04:03:29.799Z",
     "windows": [],
     "unavailable": {
       "reason": "unsupported"

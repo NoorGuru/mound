@@ -1,5 +1,5 @@
 {
-  "fetchedAtMs": 1793069574967,
+  "fetchedAtMs": 1793073809782,
   "manifest": {
     "version": 1,
     "updatedAt": "2026-10-26T20:00:36Z",
@@ -96,6 +96,15 @@
         "ranges": [
           { "range": ">=1.4.2", "status": "supported" },
           { "range": "<1.4.2", "status": "unknown" }
+        ]
+      },
+      {
+        "driver": "fx",
+        "t3CodeRange": ">=0.0.46",
+        "recommendedRange": ">=0.0.13",
+        "ranges": [
+          { "range": ">=0.0.13", "status": "supported" },
+          { "range": "<0.0.13", "status": "unsupported" }
         ]
       }
     ],
