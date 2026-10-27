@@ -4,6 +4,7 @@ import type {
   ColonyMemberRole,
   ColonyState,
   HandoffPacket,
+  MidWorkComment,
   SdlcTask,
   SpecComment,
   TeamMember,
@@ -698,6 +699,7 @@ export default function MoundApp() {
   const [roleId, setRoleId] = useState(() => sessionStorage.getItem(ROLE_KEY) ?? "noor");
   const [selected, setSelected] = useState("MND-102");
   const [steer, setSteer] = useState("");
+  const [noteDraft, setNoteDraft] = useState("");
   const [filter, setFilter] = useState("all");
   const [copiedPacket, setCopiedPacket] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
@@ -879,6 +881,28 @@ export default function MoundApp() {
       void runSteer({ environmentId, input: { taskId: task.id, comment } });
     }
     setSteer("");
+  };
+
+  const postTaskNote = () => {
+    if (!task) return;
+    const trimmed = noteDraft.trim();
+    if (!trimmed) return;
+    const comment: MidWorkComment = {
+      id: `c-${Date.now()}`,
+      taskId: task.id,
+      authorId: me.id,
+      authorName: me.name,
+      authorRole: me.role,
+      content: trimmed,
+      isSteeringPrompt: false,
+      createdAt: new Date().toISOString(),
+    };
+    patchTask(
+      task.id,
+      { reviewComments: [...task.reviewComments, comment] },
+      mkActivity("comment_added", `${me.name}: ${trimmed.slice(0, 80)}`, task.id),
+    );
+    setNoteDraft("");
   };
 
   const signOff = (t: SdlcTask) => {
@@ -3205,6 +3229,25 @@ export default function MoundApp() {
             />
             <button type="button" style={btn(true)} onClick={sendSteer}>
               Send &amp; Steer Myrmex
+            </button>
+          </div>
+          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+            <input
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && postTaskNote()}
+              placeholder="Note to the team — does not steer the Myrmex"
+              style={{
+                flex: 1,
+                background: C.panel,
+                color: C.text,
+                border: C.border,
+                borderRadius: 6,
+                padding: "8px 10px",
+              }}
+            />
+            <button type="button" style={btn(false)} onClick={() => postTaskNote()}>
+              Post Note
             </button>
           </div>
 

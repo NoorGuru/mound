@@ -1,5 +1,12 @@
 # Mound Memory
 
+## 2026-10-27 — Overnight iteration 20 (Product Council: Task Note Composer)
+
+- Pre-flight green: typecheck 35/35, web build passed, colonyManager.test.ts 8/8. All plan items [x] -> CASE B. Council: tagy `interrupted`, Grok empty (known fallbacks); orchestrator council from source audit, disclosed in NIGHT_LOG. Winner: Task Note Composer (13: 5/3/5) — verified gap: Cockpit's only task-comment path was `sendSteer()` (steering, dispatches to Myrmex), so seeded-style human questions (non-steering) had no UI write path. Colony Brief rejected again (re-aggregation), Edit Task rejected (no downstream reaction).
+- Built (tagy, signature simplified locally): `noteDraft` + `postTaskNote()` in `MoundApp.tsx` (non-steering `MidWorkComment` via existing `patchTask`, no Myrmex patch, no steer RPC, `comment_added` activity) + composer row under Send & Steer ("Post Note"). No contract/server change; server diff-logging already maps non-steering -> `comment_added`.
+- Verification: typecheck 35/35, web build passed ("Post Note" in mound chunk), colonyManager.test.ts 8/8, probe `myrmexSame true / comment_added / NOTE-OK`. `.t3-verify/` churn reverted, not committed.
+- Next: Colony Brief and Edit Task remain runner-ups/rejected per NIGHT_LOG; two-window visual check still not run; a live provider run still needs a project in the dev DB.
+
 ## 2026-10-27 — Overnight iteration 19 (Product Council: Linked Extract Guard)
 
 - Pre-flight green: typecheck 35/35, web build passed, colonyManager.test.ts 8/8. All plan items [x] -> CASE B. Council: tagy empty (known fallback), Grok short-form proposed Extract Guard / Comment Anchors / Acceptance Orphan. Winner: Linked Extract Guard (final 14: 5/4/5) — verified defect: `extractTasks` deduped on exact title only, no seed req text equals any title, so one click minted MND-105–109 duplicates over the matrix's 5/5 links. Anchors rejected (prose inference), Orphan rejected (acceptance prose is not backlog).
