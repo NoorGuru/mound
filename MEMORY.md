@@ -1,5 +1,12 @@
 # Mound Memory
 
+## 2026-10-27 — Overnight iteration 14 (Product Council: Request Changes)
+
+- Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B. Council: tagy (`/tmp/council14-tagy.md`, Command Bar / Request Changes / Spec Studio all drafted 15) + Grok compact (`/tmp/council14-grok.md`: Split Focus / Free Hands / Silent Run, all Squadron HUD re-slices, rejected as passive awareness). Winner: Request Changes & Resume Coding (final 14: 5/4/5) over Command Bar (13) and Spec Studio (12). Gap verified in source: Cockpit review actions were only Pause (Myrmex paused, column stays review), Ping (-> review), Approve (-> done at 3/3) — no way back to active.
+- Built (tagy, reviewed locally): `changesDraft` state + `requestChanges()` in `MoundApp.tsx` — patchTask-only (column review->active, approvals [], `Changes requested: ...` steering comment isSteeringPrompt:true so never an open question, Myrmex waiting_review->coding "Reworking per review feedback from {name} ({role})") + review-only panel under Consensus Gate. No contract/server change. Date purity lint hits fixed with the file's existing event-handler disable pattern.
+- Verification: typecheck 35/35, direct web tsc 0, web build passed (strings in mound chunk), colonyManager.test.ts 6/6, probe `REQUEST-CHANGES-OK` (review/1/waiting_review -> active/0/coding; handoff open questions unchanged), lint 19 = pre-existing baseline, fmt clean. No maintained test (client-only, hackathon mode; /tmp probe instead).
+- Next: two-window visual check still not run; a live provider run still needs a project in the dev DB.
+
 ## 2026-10-27 — Overnight iteration 13 (Product Council: Handoff Claim)
 
 - Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B. Council: tagy (`/tmp/council13-tagy.md`, Claim 15 / Reopen 14 / Resume 15) + Grok (`agent --model grok-4.7-high`; Claim 5/4/5, Reopen 3/3/4, Resume 3/2/2). Winner: Handoff Claim — Grok: "the only candidate whose first-load action writes a field the seed already filled in."

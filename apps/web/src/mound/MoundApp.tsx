@@ -622,6 +622,7 @@ export default function MoundApp() {
   const [copiedPacket, setCopiedPacket] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [resolveDraft, setResolveDraft] = useState("");
+  const [changesDraft, setChangesDraft] = useState("");
   const me = state.members.find((m) => m.id === roleId) ?? state.members[0]!;
   const spec = state.specs[0]!;
   const task = state.tasks.find((t) => t.id === selected) ?? state.tasks[0]!;
@@ -785,6 +786,38 @@ export default function MoundApp() {
     patchTask(t.id, {
       approvals: (t.approvals ?? []).filter((a) => a.memberId !== me.id),
     });
+  };
+
+  const requestChanges = (t: SdlcTask) => {
+    const note = changesDraft.trim() || "Please rework this and address the review discussion.";
+    // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
+    const at = new Date().toISOString();
+    patchTask(t.id, {
+      column: "active",
+      approvals: [],
+      reviewComments: [
+        ...t.reviewComments,
+        {
+          // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
+          id: "c-" + Date.now(),
+          taskId: t.id,
+          authorId: me.id,
+          authorName: me.name,
+          authorRole: me.role,
+          content: "Changes requested: " + note,
+          isSteeringPrompt: true,
+          createdAt: at,
+        },
+      ],
+      myrmex: t.myrmex
+        ? {
+            ...t.myrmex,
+            status: "coding",
+            lastAction: "Reworking per review feedback from " + me.name + " (" + me.role + ")",
+          }
+        : t.myrmex,
+    });
+    setChangesDraft("");
   };
 
   const resolveQuestion = (t: SdlcTask, answer: string) => {
@@ -2331,6 +2364,52 @@ export default function MoundApp() {
               </div>
             )}
           </div>
+          {task.column === "review" && (
+            <section
+              style={{
+                background: C.panel,
+                border: C.border,
+                borderRadius: 8,
+                padding: 12,
+                marginTop: 10,
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "ui-monospace, monospace",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: C.amber,
+                }}
+              >
+                Request changes
+              </div>
+              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                <input
+                  value={changesDraft}
+                  onChange={(e) => setChangesDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && requestChanges(task)}
+                  placeholder="What needs to change? e.g. Retry-After must be seconds"
+                  style={{
+                    flex: 1,
+                    background: C.panel2,
+                    color: C.text,
+                    border: C.border,
+                    borderRadius: 6,
+                    padding: "6px 8px",
+                    fontSize: 12,
+                  }}
+                />
+                <button type="button" style={btn(true)} onClick={() => requestChanges(task)}>
+                  Request Changes &amp; Resume Coding
+                </button>
+              </div>
+              <div style={{ fontSize: 11, color: C.dim, marginTop: 6 }}>
+                Moves the task back to Active, resets sign-offs to 0/3, and sends this note to the
+                Myrmex as a steering prompt.
+              </div>
+            </section>
+          )}
           {(openQuestions.length > 0 || resolutions.length > 0) && (
             <section
               style={{
