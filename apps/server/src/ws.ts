@@ -2385,10 +2385,12 @@ export const layerWsRpc = (
             Effect.andThen(scheduledTasks.getWebhookDelivery(input)),
           ),
         [WS_METHODS.colonyGetState]: (_input) => Effect.sync(() => colony.getState()),
-        [WS_METHODS.colonySaveSpec]: (input) => Effect.sync(() => colony.saveSpec(input.spec)),
-        [WS_METHODS.colonyCreateTask]: (input) => Effect.sync(() => colony.createTask(input.task)),
+        [WS_METHODS.colonySaveSpec]: (input) =>
+          Effect.sync(() => colony.saveSpec(input.spec, input.actor)),
+        [WS_METHODS.colonyCreateTask]: (input) =>
+          Effect.sync(() => colony.createTask(input.task, input.actor)),
         [WS_METHODS.colonyUpdateTask]: (input) =>
-          Effect.sync(() => colony.updateTask(input.task.id, input.task)),
+          Effect.sync(() => colony.updateTask(input.task.id, input.task, input.actor)),
         [WS_METHODS.colonySummonMyrmex]: colonySummon,
         [WS_METHODS.colonySteerSession]: colonySteer,
         [WS_METHODS.colonyAddComment]: (input) =>

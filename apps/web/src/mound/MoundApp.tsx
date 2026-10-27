@@ -1,5 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
 import type {
+  ActivityEvent,
   ColonyMemberRole,
   ColonyState,
   HandoffPacket,
@@ -181,7 +182,44 @@ const seed = (): ColonyState => {
         kind: "demo_seeded",
         actorId: "sarah",
         actorName: "Sarah",
-        message: "Demo colony seeded",
+        message: "Demo colony seeded: Gateway Foundations",
+        createdAt: at,
+      },
+      {
+        id: "ev-2",
+        kind: "myrmex_summoned",
+        actorId: "noor",
+        actorName: "Noor",
+        message: "Summoned Claude Code on MND-101 (feat/token-bucket-middleware)",
+        taskId: "MND-101",
+        createdAt: at,
+      },
+      {
+        id: "ev-3",
+        kind: "comment_added",
+        actorId: "sarah",
+        actorName: "Sarah",
+        message: "Sarah: Should Retry-After be seconds or an HTTP date? Clients prefer seconds.",
+        taskId: "MND-102",
+        createdAt: at,
+      },
+      {
+        id: "ev-4",
+        kind: "task_approved",
+        actorId: "noor",
+        actorName: "Noor",
+        message: "Noor signed off (eng) on MND-102",
+        taskId: "MND-102",
+        createdAt: at,
+      },
+      {
+        id: "ev-5",
+        kind: "handoff_created",
+        actorId: "noor",
+        actorName: "Noor",
+        message:
+          "Handoff packet ready for MND-102: Answer the open question first: Sarah: Should Retry-After be seconds or an HTTP date? Clients prefer seconds.",
+        taskId: "MND-102",
         createdAt: at,
       },
     ],
@@ -636,6 +674,7 @@ export default function MoundApp() {
   const [filter, setFilter] = useState("all");
   const [copiedPacket, setCopiedPacket] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
   const [resolveDraft, setResolveDraft] = useState("");
   const [changesDraft, setChangesDraft] = useState("");
   const [specDraft, setSpecDraft] = useState("");
@@ -725,7 +764,23 @@ export default function MoundApp() {
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- command fn is recreated per render by useAtomCommand; member primitives carry identity
   }, [environmentId, meId, meName, meRole, meColor, meStatus, view, selected]);
 
-  const patchTask = (id: string, patch: Partial<SdlcTask>) => {
+  const mkActivity = (
+    kind: ActivityEvent["kind"],
+    message: string,
+    taskId?: string,
+  ): ActivityEvent => ({
+    // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
+    id: `ev-${Date.now()}`,
+    kind,
+    actorId: me.id,
+    actorName: me.name,
+    message,
+    ...(taskId === undefined ? {} : { taskId }),
+    // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
+    createdAt: new Date().toISOString(),
+  });
+
+  const patchTask = (id: string, patch: Partial<SdlcTask>, activity?: ActivityEvent) => {
     let mergedTask: SdlcTask | undefined;
     const now = new Date().toISOString();
     const nextTasks = state.tasks.map((t) => {
@@ -738,24 +793,30 @@ export default function MoundApp() {
     save({
       ...state,
       tasks: nextTasks,
+      ...(activity === undefined ? {} : { activity: [...state.activity, activity].slice(-100) }),
       updatedAt: now,
     });
     if (environmentId !== null && mergedTask) {
-      void runUpdateTask({ environmentId, input: { task: mergedTask } });
+      void runUpdateTask({ environmentId, input: { task: mergedTask, actor: me } });
     }
   };
 
   const summon = (t: SdlcTask) => {
-    patchTask(t.id, {
-      column: "active",
-      myrmex: {
-        provider: "Claude Code",
-        branchName: `feat/${t.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-        status: "coding",
-        filesChanged: 0,
-        lastAction: `Summoned by ${me.name} — planning first change…`,
+    const branchName = `feat/${t.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+    patchTask(
+      t.id,
+      {
+        column: "active",
+        myrmex: {
+          provider: "Claude Code",
+          branchName,
+          status: "coding",
+          filesChanged: 0,
+          lastAction: `Summoned by ${me.name} — planning first change…`,
+        },
       },
-    });
+      mkActivity("myrmex_summoned", `Summoned Claude Code on ${t.id} (${branchName})`, t.id),
+    );
     if (environmentId !== null) {
       void runSummon({
         environmentId,
@@ -776,12 +837,16 @@ export default function MoundApp() {
       isSteeringPrompt: true,
       createdAt: new Date().toISOString(),
     };
-    patchTask(task.id, {
-      reviewComments: [...task.reviewComments, comment],
-      myrmex: task.myrmex
-        ? { ...task.myrmex, status: "coding", lastAction: `Steered by ${me.name}` }
-        : task.myrmex,
-    });
+    patchTask(
+      task.id,
+      {
+        reviewComments: [...task.reviewComments, comment],
+        myrmex: task.myrmex
+          ? { ...task.myrmex, status: "coding", lastAction: `Steered by ${me.name}` }
+          : task.myrmex,
+      },
+      mkActivity("steer_sent", `${me.name}: ${comment.content.slice(0, 80)}`, task.id),
+    );
     if (environmentId !== null) {
       void runSteer({ environmentId, input: { taskId: task.id, comment } });
     }
@@ -790,17 +855,21 @@ export default function MoundApp() {
 
   const signOff = (t: SdlcTask) => {
     const existing = (t.approvals ?? []).filter((a) => a.role !== me.role);
-    patchTask(t.id, {
-      approvals: [
-        ...existing,
-        {
-          memberId: me.id,
-          memberName: me.name,
-          role: me.role,
-          approvedAt: new Date().toISOString(),
-        },
-      ],
-    });
+    patchTask(
+      t.id,
+      {
+        approvals: [
+          ...existing,
+          {
+            memberId: me.id,
+            memberName: me.name,
+            role: me.role,
+            approvedAt: new Date().toISOString(),
+          },
+        ],
+      },
+      mkActivity("task_approved", `${me.name} signed off (${me.role}) on ${t.id}`, t.id),
+    );
   };
 
   const withdrawSignOff = (t: SdlcTask) => {
@@ -813,52 +882,60 @@ export default function MoundApp() {
     const note = changesDraft.trim() || "Please rework this and address the review discussion.";
     // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
     const at = new Date().toISOString();
-    patchTask(t.id, {
-      column: "active",
-      approvals: [],
-      reviewComments: [
-        ...t.reviewComments,
-        {
-          // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
-          id: "c-" + Date.now(),
-          taskId: t.id,
-          authorId: me.id,
-          authorName: me.name,
-          authorRole: me.role,
-          content: "Changes requested: " + note,
-          isSteeringPrompt: true,
-          createdAt: at,
-        },
-      ],
-      myrmex: t.myrmex
-        ? {
-            ...t.myrmex,
-            status: "coding",
-            lastAction: "Reworking per review feedback from " + me.name + " (" + me.role + ")",
-          }
-        : t.myrmex,
-    });
+    patchTask(
+      t.id,
+      {
+        column: "active",
+        approvals: [],
+        reviewComments: [
+          ...t.reviewComments,
+          {
+            // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
+            id: "c-" + Date.now(),
+            taskId: t.id,
+            authorId: me.id,
+            authorName: me.name,
+            authorRole: me.role,
+            content: "Changes requested: " + note,
+            isSteeringPrompt: true,
+            createdAt: at,
+          },
+        ],
+        myrmex: t.myrmex
+          ? {
+              ...t.myrmex,
+              status: "coding",
+              lastAction: "Reworking per review feedback from " + me.name + " (" + me.role + ")",
+            }
+          : t.myrmex,
+      },
+      mkActivity("task_moved", `${me.name} moved ${t.id} to Active`, t.id),
+    );
     setChangesDraft("");
   };
 
   const resolveQuestion = (t: SdlcTask, answer: string) => {
     const trimmed = answer.trim();
     if (!trimmed) return;
-    patchTask(t.id, {
-      reviewComments: [
-        ...t.reviewComments,
-        {
-          id: `c-${Date.now()}`,
-          taskId: t.id,
-          authorId: me.id,
-          authorName: me.name,
-          authorRole: me.role,
-          content: `${RESOLVED_PREFIX}${trimmed}`,
-          isSteeringPrompt: false,
-          createdAt: new Date().toISOString(),
-        },
-      ],
-    });
+    patchTask(
+      t.id,
+      {
+        reviewComments: [
+          ...t.reviewComments,
+          {
+            id: `c-${Date.now()}`,
+            taskId: t.id,
+            authorId: me.id,
+            authorName: me.name,
+            authorRole: me.role,
+            content: `${RESOLVED_PREFIX}${trimmed}`,
+            isSteeringPrompt: false,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      },
+      mkActivity("comment_added", `${me.name}: Resolved: ${trimmed.slice(0, 80)}`, t.id),
+    );
     setResolveDraft("");
   };
 
@@ -866,24 +943,31 @@ export default function MoundApp() {
     const trimmed = specDraft.trim();
     if (!trimmed) return;
     const comment: SpecComment = {
+      // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
       id: `c-${Date.now()}`,
       authorId: me.id,
       authorName: me.name,
       authorRole: me.role,
       content: trimmed,
+      // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
       createdAt: new Date().toISOString(),
     };
     const nextSpec = {
       ...spec,
       comments: [...spec.comments, comment],
+      // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
       updatedAt: new Date().toISOString(),
     };
     save({
       ...state,
       specs: state.specs.map((s) => (s.id === spec.id ? nextSpec : s)),
+      activity: [
+        ...state.activity,
+        mkActivity("spec_updated", `${me.name} updated the spec`),
+      ].slice(-100),
     });
     if (environmentId !== null) {
-      void runSaveSpec({ environmentId, input: { spec: nextSpec } });
+      void runSaveSpec({ environmentId, input: { spec: nextSpec, actor: me } });
     }
     setSpecDraft("");
   };
@@ -920,7 +1004,11 @@ export default function MoundApp() {
       createdAt: at,
     };
 
-    patchTask(t.id, { handoff: packet });
+    patchTask(
+      t.id,
+      { handoff: packet },
+      mkActivity("handoff_created", `Handoff packet ready for ${t.id}: ${suggestedNextStep}`, t.id),
+    );
     if (environmentId !== null) {
       void runCreateHandoff({
         environmentId,
@@ -971,10 +1059,14 @@ export default function MoundApp() {
     save({
       ...state,
       tasks: [...state.tasks, newTask],
+      activity: [
+        ...state.activity,
+        mkActivity("task_created", `${me.name} created ${id}: ${trimmedTitle}`, id),
+      ].slice(-100),
       updatedAt: now,
     });
     if (environmentId !== null) {
-      void runCreateTask({ environmentId, input: { task: newTask } });
+      void runCreateTask({ environmentId, input: { task: newTask, actor: me } });
     }
     setNewTaskTitle("");
     setNewTaskDesc("");
@@ -1007,10 +1099,24 @@ export default function MoundApp() {
       fresh.push(newTask);
       currentTasks.push(newTask);
     }
-    save({ ...state, tasks: [...state.tasks, ...fresh] });
+    save({
+      ...state,
+      tasks: [...state.tasks, ...fresh],
+      ...(fresh.length === 0
+        ? {}
+        : {
+            activity: [
+              ...state.activity,
+              mkActivity(
+                "task_created",
+                `${me.name} extracted ${fresh.length} task${fresh.length > 1 ? "s" : ""} from the spec`,
+              ),
+            ].slice(-100),
+          }),
+    });
     if (environmentId !== null) {
       for (const freshTask of fresh) {
-        void runCreateTask({ environmentId, input: { task: freshTask } });
+        void runCreateTask({ environmentId, input: { task: freshTask, actor: me } });
       }
     }
     setView("board");
@@ -1083,7 +1189,7 @@ export default function MoundApp() {
     const nextSpec = { ...spec, content, updatedAt: new Date().toISOString() };
     save({ ...state, specs: state.specs.map((s) => (s.id === spec.id ? nextSpec : s)) });
     if (environmentId !== null) {
-      void runSaveSpec({ environmentId, input: { spec: nextSpec } });
+      void runSaveSpec({ environmentId, input: { spec: nextSpec, actor: me } });
     }
   };
 
@@ -1132,7 +1238,132 @@ export default function MoundApp() {
           <div style={{ position: "relative" }}>
             <button
               type="button"
-              onClick={() => setInboxOpen((prev) => !prev)}
+              onClick={() => {
+                setActivityOpen((prev) => !prev);
+                setInboxOpen(false);
+              }}
+              style={{
+                ...btn(),
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                borderColor: activityOpen ? C.amber : undefined,
+              }}
+            >
+              <span>Activity</span>
+              <span
+                style={{
+                  padding: "1px 6px",
+                  borderRadius: 999,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  background: C.panel2,
+                  color: C.dim,
+                  border: C.border,
+                }}
+              >
+                {state.activity.length}
+              </span>
+            </button>
+            {activityOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 6px)",
+                  right: 0,
+                  width: 400,
+                  maxWidth: "90vw",
+                  background: C.panel,
+                  border: C.border,
+                  borderRadius: 8,
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.6)",
+                  zIndex: 100,
+                  maxHeight: 440,
+                  overflowY: "auto",
+                }}
+              >
+                {state.activity.length === 0 ? (
+                  <div
+                    style={{
+                      padding: "16px 14px",
+                      color: C.dim,
+                      fontSize: 12,
+                      textAlign: "center",
+                    }}
+                  >
+                    No colony activity yet.
+                  </div>
+                ) : (
+                  [...state.activity]
+                    .reverse()
+                    .slice(0, 20)
+                    .map((event) => {
+                      const dot =
+                        event.kind === "myrmex_summoned"
+                          ? C.amber
+                          : event.kind === "task_approved"
+                            ? C.green
+                            : event.kind === "task_moved" || event.kind === "handoff_created"
+                              ? C.sky
+                              : C.dim;
+                      return (
+                        <div
+                          key={event.id}
+                          onClick={() => {
+                            if (event.taskId) {
+                              setSelected(event.taskId);
+                              setView("cockpit");
+                              setActivityOpen(false);
+                            }
+                          }}
+                          style={{
+                            padding: "8px 12px",
+                            borderTop: C.border,
+                            cursor: event.taskId ? "pointer" : "default",
+                            display: "flex",
+                            gap: 8,
+                            alignItems: "flex-start",
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 7,
+                              height: 7,
+                              borderRadius: 999,
+                              background: dot,
+                              marginTop: 5,
+                              flexShrink: 0,
+                            }}
+                          />
+                          <span style={{ flex: 1, fontSize: 12, lineHeight: 1.45 }}>
+                            {event.message}
+                            {event.taskId ? (
+                              <span
+                                style={{
+                                  color: C.amber,
+                                  fontFamily: "ui-monospace, monospace",
+                                  fontSize: 11,
+                                  marginLeft: 6,
+                                }}
+                              >
+                                {event.taskId}
+                              </span>
+                            ) : null}
+                          </span>
+                        </div>
+                      );
+                    })
+                )}
+              </div>
+            )}
+          </div>
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => {
+                setInboxOpen((prev) => !prev);
+                setActivityOpen(false);
+              }}
               style={{
                 ...btn(),
                 display: "inline-flex",
@@ -1537,7 +1768,7 @@ export default function MoundApp() {
               onChange={(e) => save({ ...state, specs: [{ ...spec, content: e.target.value }] })}
               onBlur={() => {
                 if (environmentId !== null) {
-                  void runSaveSpec({ environmentId, input: { spec } });
+                  void runSaveSpec({ environmentId, input: { spec, actor: me } });
                 }
               }}
               style={{
@@ -2444,13 +2675,21 @@ export default function MoundApp() {
                 style={btn()}
                 onClick={() =>
                   task.myrmex &&
-                  patchTask(task.id, {
-                    myrmex: {
-                      ...task.myrmex,
-                      status: "paused",
-                      lastAction: "Paused by " + me.name,
+                  patchTask(
+                    task.id,
+                    {
+                      myrmex: {
+                        ...task.myrmex,
+                        status: "paused",
+                        lastAction: "Paused by " + me.name,
+                      },
                     },
-                  })
+                    mkActivity(
+                      "myrmex_paused",
+                      `${me.name} paused the Myrmex on ${task.id}`,
+                      task.id,
+                    ),
+                  )
                 }
               >
                 Pause &amp; Steer Myrmex
@@ -2458,7 +2697,17 @@ export default function MoundApp() {
               <button
                 type="button"
                 style={btn()}
-                onClick={() => patchTask(task.id, { column: "review" })}
+                onClick={() =>
+                  patchTask(
+                    task.id,
+                    { column: "review" },
+                    mkActivity(
+                      "task_moved",
+                      `${me.name} moved ${task.id} to Mid-Work Review`,
+                      task.id,
+                    ),
+                  )
+                }
               >
                 Ping PM / Request Mid-Work Review
               </button>
@@ -2473,7 +2722,14 @@ export default function MoundApp() {
                   cursor: consensus.reached ? "pointer" : "not-allowed",
                   opacity: consensus.reached ? 1 : 0.6,
                 }}
-                onClick={() => consensus.reached && patchTask(task.id, { column: "done" })}
+                onClick={() =>
+                  consensus.reached &&
+                  patchTask(
+                    task.id,
+                    { column: "done" },
+                    mkActivity("task_moved", `${me.name} moved ${task.id} to Shipped`, task.id),
+                  )
+                }
               >
                 {consensus.reached
                   ? "Approve & Merge Worktree"

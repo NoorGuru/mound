@@ -100,6 +100,54 @@ describe("ColonyManager provider binding", () => {
     assert.strictEqual(cleared.presence?.find((p) => p.memberId === "noor")?.taskId, undefined);
   });
 
+  it("logs colony activity for summons, moves, comments, and sign-offs", () => {
+    const colony = new ColonyManager();
+    colony.summonMyrmex("MND-103", "Codex", actor);
+    let state = colony.getState();
+    assert.strictEqual(state.activity.at(-1)?.kind, "myrmex_summoned");
+    assert.strictEqual(state.activity.at(-1)?.taskId, "MND-103");
+
+    const task103 = state.tasks.find((entry) => entry.id === "MND-103")!;
+    state = colony.updateTask("MND-103", { ...task103, column: "review" }, actor);
+    assert.strictEqual(state.activity.at(-1)?.kind, "task_moved");
+
+    const reviewTask = state.tasks.find((entry) => entry.id === "MND-102")!;
+    state = colony.updateTask(
+      "MND-102",
+      {
+        ...reviewTask,
+        reviewComments: [
+          ...reviewTask.reviewComments,
+          {
+            id: "mc-test-1",
+            taskId: "MND-102",
+            authorId: "sarah",
+            authorName: "Sarah",
+            authorRole: "pm" as const,
+            content: "Resolved: Use seconds",
+            isSteeringPrompt: false,
+            createdAt: "2026-10-27T00:00:00.000Z",
+          },
+        ],
+        approvals: [
+          ...(reviewTask.approvals ?? []),
+          {
+            memberId: "sarah",
+            memberName: "Sarah",
+            role: "pm" as const,
+            approvedAt: "2026-10-27T00:00:00.000Z",
+          },
+        ],
+      },
+      actor,
+    );
+    const kinds = state.activity.slice(-2).map((event) => event.kind);
+    assert.deepStrictEqual(kinds, ["comment_added", "task_approved"]);
+
+    const quiet = colony.updateTask("MND-102", { ...state.tasks.find((e) => e.id === "MND-102")! });
+    assert.strictEqual(quiet.activity.length, state.activity.length);
+  });
+
   it("ignores provider events for unbound threads", () => {
     const colony = new ColonyManager();
     const before = colony.getState();

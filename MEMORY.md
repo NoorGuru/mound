@@ -1,5 +1,12 @@
 # Mound Memory
 
+## 2026-10-27 — Overnight iteration 17 (Product Council: Colony Activity Timeline)
+
+- Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B. Council: tagy errored `interrupted` twice (council + review pass, zero edits; known fallback), Grok short-form proposed Board Resolve (rejected: duplicates Cockpit Blocker Resolver, same action second place), Second-Summon Guard (3/3/5 guardrail), Packet Line (already shown). Winner: Colony Activity Timeline (5/4/4) over Reopen Shipped (4/3/5, runner-up) — `activity` was written almost nowhere, so the log lied by omission.
+- Built: optional `actor` on `ColonySaveSpecInput/CreateTaskInput/UpdateTaskInput` (contracts); `ColonyManager.appendActivity` (cap 100) + `updateTask` diff-logging (comments by id with own author, approvals, summon, actor-gated move/pause; provider updates silent), `saveSpec` change-gated, ws pass-through; web `mkActivity()` appends in all semantic handlers + header Activity dropdown (latest 20, click -> Cockpit). Seeds backfill 5 events both sides.
+- Verification: typecheck 35/35, web build passed (activity strings in mound chunk), colonyManager.test.ts 7/7 (new activity test), probe `SEED_ACTIVITY 5 ... / ACTIVITY-OK`, lint 19 < baseline 21 (3 postSpecComment purity hits fixed with the file's event-handler disable pattern), fmt clean. `.t3-verify/` churn reverted, not committed.
+- Next: Reopen Shipped Task is the standing runner-up; two-window visual check still not run; a live provider run still needs a project in the dev DB.
+
 ## 2026-10-27 — Overnight iteration 16 (Product Council: Manual New Task Composer)
 
 - Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B. Council: tagy (`/tmp/council16-tagy.md`: New Task 14 / Reopen 14 / Cmd-K 13) + Grok critique (New Task 14, Reopen 11, Cmd-K 10). Winner: Manual New Task Quick Composer (5/4/5) — `colonyCreateTask` existed end to end with Extract Tasks as its only caller; the Board had no manual creation path. Reopen cut for idle-Myrmex/in-flight inflation; Cmd-K cut because the host already binds `mod+k` (`packages/shared/src/keybindings.ts`).

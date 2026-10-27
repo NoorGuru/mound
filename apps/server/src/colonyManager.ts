@@ -3,6 +3,7 @@ import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 
 import type {
+  ActivityEventKind,
   ColonyState,
   HandoffPacket,
   MidWorkComment,
@@ -263,6 +264,43 @@ export function seedDemoColony(): ColonyState {
         message: "Demo colony seeded: Gateway Foundations",
         createdAt: at,
       },
+      {
+        id: "ev-2",
+        kind: "myrmex_summoned",
+        actorId: "noor",
+        actorName: "Noor",
+        message: "Summoned Claude Code on MND-101 (feat/token-bucket-middleware)",
+        taskId: "MND-101",
+        createdAt: at,
+      },
+      {
+        id: "ev-3",
+        kind: "comment_added",
+        actorId: "sarah",
+        actorName: "Sarah",
+        message: "Sarah: Should Retry-After be seconds or an HTTP date? Clients prefer seconds.",
+        taskId: "MND-102",
+        createdAt: at,
+      },
+      {
+        id: "ev-4",
+        kind: "task_approved",
+        actorId: "noor",
+        actorName: "Noor",
+        message: "Noor signed off (eng) on MND-102",
+        taskId: "MND-102",
+        createdAt: at,
+      },
+      {
+        id: "ev-5",
+        kind: "handoff_created",
+        actorId: "noor",
+        actorName: "Noor",
+        message:
+          "Handoff packet ready for MND-102: Answer the open question first: Sarah: Should Retry-After be seconds or an HTTP date? Clients prefer seconds.",
+        taskId: "MND-102",
+        createdAt: at,
+      },
     ],
     updatedAt: at,
   };
@@ -348,8 +386,38 @@ export class ColonyManager {
     return this.state;
   }
 
-  saveSpec(spec: ProductSpec): ColonyState {
+  private appendActivity(
+    kind: ActivityEventKind,
+    actorId: string,
+    actorName: string,
+    message: string,
+    taskId?: string,
+  ): void {
+    this.state = {
+      ...this.state,
+      activity: [
+        ...this.state.activity,
+        {
+          id: uid("ev"),
+          kind,
+          actorId,
+          actorName,
+          message,
+          ...(taskId === undefined ? {} : { taskId }),
+          createdAt: now(),
+        },
+      ].slice(-100),
+    };
+  }
+
+  saveSpec(spec: ProductSpec, actor?: TeamMember): ColonyState {
     const index = this.state.specs.findIndex((entry) => entry.id === spec.id);
+    const existing = index >= 0 ? this.state.specs[index] : undefined;
+    const changed =
+      existing === undefined ||
+      existing.content !== spec.content ||
+      existing.status !== spec.status ||
+      JSON.stringify(existing.comments) !== JSON.stringify(spec.comments);
     const next = { ...spec, updatedAt: now() };
     this.state = {
       ...this.state,
@@ -358,23 +426,100 @@ export class ColonyManager {
           ? this.state.specs.map((entry) => (entry.id === spec.id ? next : entry))
           : [...this.state.specs, next],
     };
+    if (actor && changed) {
+      this.appendActivity("spec_updated", actor.id, actor.name, `${actor.name} updated the spec`);
+    }
     this.persist();
     return this.state;
   }
 
-  createTask(task: SdlcTask): ColonyState {
+  createTask(task: SdlcTask, actor?: TeamMember): ColonyState {
     this.state = { ...this.state, tasks: [...this.state.tasks, task] };
+    if (actor) {
+      this.appendActivity(
+        "task_created",
+        actor.id,
+        actor.name,
+        `${actor.name} created ${task.id}: ${task.title}`,
+        task.id,
+      );
+    }
     this.persist();
     return this.state;
   }
 
-  updateTask(taskId: string, patch: Partial<SdlcTask>): ColonyState {
+  updateTask(taskId: string, patch: Partial<SdlcTask>, actor?: TeamMember): ColonyState {
+    const before = this.state.tasks.find((task) => task.id === taskId);
     this.state = {
       ...this.state,
       tasks: this.state.tasks.map((task) =>
         task.id === taskId ? { ...task, ...patch, updatedAt: now() } : task,
       ),
     };
+    const after = this.state.tasks.find((task) => task.id === taskId);
+    if (before && after) {
+      const oldCommentIds = new Set(before.reviewComments.map((comment) => comment.id));
+      for (const comment of after.reviewComments) {
+        if (oldCommentIds.has(comment.id)) continue;
+        this.appendActivity(
+          comment.isSteeringPrompt ? "steer_sent" : "comment_added",
+          comment.authorId,
+          comment.authorName,
+          `${comment.authorName}: ${comment.content.slice(0, 80)}`,
+          taskId,
+        );
+      }
+      const oldApprovals = new Set(
+        (before.approvals ?? []).map((approval) => `${approval.memberId}:${approval.role}`),
+      );
+      for (const approval of after.approvals ?? []) {
+        if (oldApprovals.has(`${approval.memberId}:${approval.role}`)) continue;
+        this.appendActivity(
+          "task_approved",
+          approval.memberId,
+          approval.memberName,
+          `${approval.memberName} signed off (${approval.role}) on ${taskId}`,
+          taskId,
+        );
+      }
+      const summoned = before.myrmex === undefined && after.myrmex !== undefined;
+      if (summoned && after.myrmex) {
+        const actorName =
+          actor?.name ??
+          this.state.members.find((member) => member.id === after.assigneeId)?.name ??
+          after.assigneeId;
+        this.appendActivity(
+          "myrmex_summoned",
+          actor?.id ?? after.assigneeId,
+          actorName,
+          `Summoned ${after.myrmex.provider} on ${taskId}${after.myrmex.branchName ? ` (${after.myrmex.branchName})` : ""}`,
+          taskId,
+        );
+      } else if (actor && before.column !== after.column) {
+        const labels: Record<SdlcTask["column"], string> = {
+          todo: "Ready",
+          active: "Active",
+          review: "Mid-Work Review",
+          done: "Shipped",
+        };
+        this.appendActivity(
+          "task_moved",
+          actor.id,
+          actor.name,
+          `${actor.name} moved ${taskId} to ${labels[after.column]}`,
+          taskId,
+        );
+      }
+      if (actor && before.myrmex?.status !== "paused" && after.myrmex?.status === "paused") {
+        this.appendActivity(
+          "myrmex_paused",
+          actor.id,
+          actor.name,
+          `${actor.name} paused the Myrmex on ${taskId}`,
+          taskId,
+        );
+      }
+    }
     this.persist();
     return this.state;
   }
@@ -455,17 +600,21 @@ export class ColonyManager {
       .replace(/^-|-$/g, "");
     // ProviderManager session start is bound by the WS handler layer; the
     // demo binding records the worktree branch so the board updates live.
-    return this.updateTask(taskId, {
-      column: "active",
-      myrmex: {
-        provider,
-        sessionId: uid("session"),
-        branchName: `feat/${slug}`,
-        status: "coding",
-        filesChanged: 0,
-        lastAction: `Summoned by ${actor.name}: planning first change…`,
+    return this.updateTask(
+      taskId,
+      {
+        column: "active",
+        myrmex: {
+          provider,
+          sessionId: uid("session"),
+          branchName: `feat/${slug}`,
+          status: "coding",
+          filesChanged: 0,
+          lastAction: `Summoned by ${actor.name}: planning first change…`,
+        },
       },
-    });
+      actor,
+    );
   }
 
   steerSession(taskId: string, comment: MidWorkComment): ColonyState {

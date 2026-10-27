@@ -167,13 +167,22 @@ export type ColonyState = typeof ColonyState.Type;
 
 export const COLONY_UPDATED_CHANNEL = "colony:updated" as const;
 
-export const ColonySaveSpecInput = Schema.Struct({ spec: ProductSpec });
+export const ColonySaveSpecInput = Schema.Struct({
+  spec: ProductSpec,
+  actor: Schema.optional(TeamMember),
+});
 export type ColonySaveSpecInput = typeof ColonySaveSpecInput.Type;
 
-export const ColonyCreateTaskInput = Schema.Struct({ task: SdlcTask });
+export const ColonyCreateTaskInput = Schema.Struct({
+  task: SdlcTask,
+  actor: Schema.optional(TeamMember),
+});
 export type ColonyCreateTaskInput = typeof ColonyCreateTaskInput.Type;
 
-export const ColonyUpdateTaskInput = Schema.Struct({ task: SdlcTask });
+export const ColonyUpdateTaskInput = Schema.Struct({
+  task: SdlcTask,
+  actor: Schema.optional(TeamMember),
+});
 export type ColonyUpdateTaskInput = typeof ColonyUpdateTaskInput.Type;
 
 export const ColonySummonMyrmexInput = Schema.Struct({
