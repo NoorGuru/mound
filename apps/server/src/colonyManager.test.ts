@@ -148,6 +148,50 @@ describe("ColonyManager provider binding", () => {
     assert.strictEqual(quiet.activity.length, state.activity.length);
   });
 
+  it("reopens a shipped task for rework without reviving its session", () => {
+    const colony = new ColonyManager();
+    const shipped = colony.getState().tasks.find((entry) => entry.id === "MND-100")!;
+    assert.strictEqual(shipped.column, "done");
+    assert.strictEqual(shipped.approvals?.length, 3);
+
+    const state = colony.updateTask(
+      "MND-100",
+      {
+        ...shipped,
+        column: "todo",
+        approvals: [],
+        reviewComments: [
+          ...shipped.reviewComments,
+          {
+            id: "mc-reopen-1",
+            taskId: "MND-100",
+            authorId: "noor",
+            authorName: "Noor",
+            authorRole: "eng" as const,
+            content: "Reopened: Burst edge case still leaks",
+            isSteeringPrompt: true,
+            createdAt: "2026-10-27T00:00:00.000Z",
+          },
+        ],
+        myrmex: shipped.myrmex
+          ? { ...shipped.myrmex, status: "idle" as const, lastAction: "Reopened by Noor" }
+          : undefined,
+      },
+      actor,
+    );
+    const reopened = state.tasks.find((entry) => entry.id === "MND-100")!;
+    assert.strictEqual(reopened.column, "todo");
+    assert.deepStrictEqual(reopened.approvals, []);
+    assert.strictEqual(reopened.myrmex?.status, "idle");
+    assert.strictEqual(reopened.myrmex?.branchName, "chore/audit-limiter");
+    assert.strictEqual(
+      reopened.reviewComments.at(-1)?.content,
+      "Reopened: Burst edge case still leaks",
+    );
+    assert.strictEqual(reopened.reviewComments.at(-1)?.isSteeringPrompt, true);
+    assert.ok(state.activity.some((event) => event.taskId === "MND-100"));
+  });
+
   it("ignores provider events for unbound threads", () => {
     const colony = new ColonyManager();
     const before = colony.getState();

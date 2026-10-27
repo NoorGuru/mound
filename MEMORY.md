@@ -1,5 +1,11 @@
 # Mound Memory
 
+## 2026-10-27 — Overnight iteration 18 (Product Council: Reopen Shipped Task)
+
+- Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B. Council: tagy (Reopen 14.5 / Resume 12.5 / Delete 8) + Grok short-form (Reopen 4/3/4 winner, Delete 2/2/2, Resume 3/1/2). Winner: Reopen Shipped Task — the standing runner-up from iterations 13/17, now specifiable honestly. Grok's load-bearing critique applied: the retired session must not rejoin in-flight totals.
+- Built: `reopenTask()` + `reopenDraft` + done-only Cockpit Reopen panel in `MoundApp.tsx` (column done->todo, approvals [], `Reopened: ...` steering comment, Myrmex completed->idle preserving branch/provider); `deriveSquadronHUD()` excludes idle/completed from live pairings + fleet in-flight; Board idle cards show Summon again, done cards gain "Reopen for rework" jump. No contract/server change. Maintained test added: `colonyManager.test.ts` reopen transition (8/8).
+- Next: Delete/Archive Task and Myrmex Resume remain rejected (no seed visibility / no RPC); two-window visual check still not run; a live provider run still needs a project in the dev DB.
+
 ## 2026-10-27 — Overnight iteration 17 (Product Council: Colony Activity Timeline)
 
 - Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B. Council: tagy errored `interrupted` twice (council + review pass, zero edits; known fallback), Grok short-form proposed Board Resolve (rejected: duplicates Cockpit Blocker Resolver, same action second place), Second-Summon Guard (3/3/5 guardrail), Packet Line (already shown). Winner: Colony Activity Timeline (5/4/4) over Reopen Shipped (4/3/5, runner-up) — `activity` was written almost nowhere, so the log lied by omission.

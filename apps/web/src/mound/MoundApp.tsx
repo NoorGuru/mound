@@ -562,7 +562,13 @@ function deriveSquadronHUD(state: ColonyState): SquadronHUDData {
     const assignedTasks = tasks.filter((t) => t.assigneeId === member.id);
 
     const livePairings: Array<LiveMyrmexPairing> = assignedTasks
-      .filter((t) => t.myrmex && t.column !== "done")
+      .filter(
+        (t) =>
+          t.myrmex &&
+          t.column !== "done" &&
+          t.myrmex.status !== "idle" &&
+          t.myrmex.status !== "completed",
+      )
       .map((t) => ({
         taskId: t.id,
         taskTitle: t.title,
@@ -610,7 +616,13 @@ function deriveSquadronHUD(state: ColonyState): SquadronHUDData {
     };
   });
 
-  const activeMyrmexTasks = tasks.filter((t) => t.myrmex && t.column !== "done");
+  const activeMyrmexTasks = tasks.filter(
+    (t) =>
+      t.myrmex &&
+      t.column !== "done" &&
+      t.myrmex.status !== "idle" &&
+      t.myrmex.status !== "completed",
+  );
   const activeMyrmexCount = activeMyrmexTasks.length;
   const filesInFlight = activeMyrmexTasks.reduce(
     (sum, t) => sum + (t.myrmex?.filesChanged ?? 0),
@@ -677,6 +689,7 @@ export default function MoundApp() {
   const [activityOpen, setActivityOpen] = useState(false);
   const [resolveDraft, setResolveDraft] = useState("");
   const [changesDraft, setChangesDraft] = useState("");
+  const [reopenDraft, setReopenDraft] = useState("");
   const [specDraft, setSpecDraft] = useState("");
   const me = state.members.find((m) => m.id === roleId) ?? state.members[0]!;
   const spec = state.specs[0]!;
@@ -912,6 +925,42 @@ export default function MoundApp() {
       mkActivity("task_moved", `${me.name} moved ${t.id} to Active`, t.id),
     );
     setChangesDraft("");
+  };
+
+  const reopenTask = (t: SdlcTask) => {
+    const note = reopenDraft.trim() || "Shipped work needs another pass.";
+    // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
+    const at = new Date().toISOString();
+    patchTask(
+      t.id,
+      {
+        column: "todo",
+        approvals: [],
+        reviewComments: [
+          ...t.reviewComments,
+          {
+            // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
+            id: "c-" + Date.now(),
+            taskId: t.id,
+            authorId: me.id,
+            authorName: me.name,
+            authorRole: me.role,
+            content: "Reopened: " + note,
+            isSteeringPrompt: true,
+            createdAt: at,
+          },
+        ],
+        myrmex: t.myrmex
+          ? {
+              ...t.myrmex,
+              status: "idle",
+              lastAction: "Reopened by " + me.name + " (" + me.role + "), awaiting fresh summon",
+            }
+          : t.myrmex,
+      },
+      mkActivity("task_moved", `${me.name} reopened ${t.id} for rework`, t.id),
+    );
+    setReopenDraft("");
   };
 
   const resolveQuestion = (t: SdlcTask, answer: string) => {
@@ -2497,7 +2546,7 @@ export default function MoundApp() {
                         </div>
                       ) : null}
                       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                        {!t.myrmex && (
+                        {(!t.myrmex || t.myrmex.status === "idle") && (
                           <button
                             type="button"
                             style={btn(true)}
@@ -2509,7 +2558,20 @@ export default function MoundApp() {
                             Summon Myrmex
                           </button>
                         )}
-                        {t.myrmex && (
+                        {t.column === "done" && (
+                          <button
+                            type="button"
+                            style={btn()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelected(t.id);
+                              setView("cockpit");
+                            }}
+                          >
+                            Reopen for rework
+                          </button>
+                        )}
+                        {t.myrmex && t.myrmex.status !== "idle" && (
                           <button
                             type="button"
                             style={btn()}
@@ -2854,6 +2916,52 @@ export default function MoundApp() {
               <div style={{ fontSize: 11, color: C.dim, marginTop: 6 }}>
                 Moves the task back to Active, resets sign-offs to 0/3, and sends this note to the
                 Myrmex as a steering prompt.
+              </div>
+            </section>
+          )}
+          {task.column === "done" && (
+            <section
+              style={{
+                background: C.panel,
+                border: C.border,
+                borderRadius: 8,
+                padding: 12,
+                marginTop: 10,
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "ui-monospace, monospace",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: C.amber,
+                }}
+              >
+                Reopen shipped task
+              </div>
+              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                <input
+                  value={reopenDraft}
+                  onChange={(e) => setReopenDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && reopenTask(task)}
+                  placeholder="Why reopen? e.g. Burst edge case still leaks"
+                  style={{
+                    flex: 1,
+                    background: C.panel2,
+                    color: C.text,
+                    border: C.border,
+                    borderRadius: 6,
+                    padding: "6px 8px",
+                    fontSize: 12,
+                  }}
+                />
+                <button type="button" style={btn(true)} onClick={() => reopenTask(task)}>
+                  Reopen for Rework
+                </button>
+              </div>
+              <div style={{ fontSize: 11, color: C.dim, marginTop: 6 }}>
+                Moves the task back to Ready, resets sign-offs to 0/3, and retires the completed
+                Myrmex. Summon a fresh one to rework it.
               </div>
             </section>
           )}
