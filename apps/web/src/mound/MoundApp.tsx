@@ -350,6 +350,141 @@ function deriveConsensus(task: SdlcTask, members: ReadonlyArray<TeamMember>): Ta
   };
 }
 
+interface LiveMyrmexPairing {
+  taskId: string;
+  taskTitle: string;
+  provider: string;
+  model?: string | undefined;
+  branchName?: string | undefined;
+  status: string;
+  filesChanged: number;
+  lastAction: string;
+}
+
+interface MemberSquadronHUD {
+  member: TeamMember;
+  assignedTasks: Array<SdlcTask>;
+  livePairings: Array<LiveMyrmexPairing>;
+  inFlightFiles: number;
+  authoredOpenQuestions: Array<{
+    taskId: string;
+    taskTitle: string;
+    commentId: string;
+    content: string;
+  }>;
+  pendingSignoffs: Array<SdlcTask>;
+  shippedCount: number;
+  readyCount: number;
+}
+
+interface SquadronFleetTotals {
+  activeMyrmexCount: number;
+  filesInFlight: number;
+  branchesInFlightCount: number;
+  branchesInFlight: Array<string>;
+  blockerCount: number;
+  shippedCount: number;
+  totalHumans: number;
+  onlineHumans: number;
+}
+
+interface SquadronHUDData {
+  fleet: SquadronFleetTotals;
+  roster: Array<MemberSquadronHUD>;
+}
+
+function deriveSquadronHUD(state: ColonyState): SquadronHUDData {
+  const tasks = state.tasks;
+  const members = state.members;
+  const reviewTasks = tasks.filter((t) => t.column === "review");
+
+  const roster: Array<MemberSquadronHUD> = members.map((member) => {
+    const assignedTasks = tasks.filter((t) => t.assigneeId === member.id);
+
+    const livePairings: Array<LiveMyrmexPairing> = assignedTasks
+      .filter((t) => t.myrmex && t.column !== "done")
+      .map((t) => ({
+        taskId: t.id,
+        taskTitle: t.title,
+        provider: t.myrmex!.provider,
+        model: t.myrmex!.model,
+        branchName: t.myrmex!.branchName,
+        status: t.myrmex!.status,
+        filesChanged: t.myrmex!.filesChanged,
+        lastAction: t.myrmex!.lastAction,
+      }));
+
+    const inFlightFiles = livePairings.reduce((sum, p) => sum + p.filesChanged, 0);
+
+    const authoredOpenQuestions = tasks
+      .filter((t) => t.column !== "done")
+      .flatMap((t) =>
+        t.reviewComments
+          .filter((c) => !c.isSteeringPrompt && c.authorId === member.id)
+          .map((c) => ({
+            taskId: t.id,
+            taskTitle: t.title,
+            commentId: c.id,
+            content: c.content,
+          })),
+      );
+
+    const pendingSignoffs = reviewTasks.filter((t) => {
+      const c = deriveConsensus(t, members);
+      const gate = c.gates.find((g) => g.role === member.role);
+      return gate ? gate.status !== "approved" : true;
+    });
+
+    const shippedCount = assignedTasks.filter((t) => t.column === "done").length;
+    const readyCount = assignedTasks.filter((t) => t.column === "todo").length;
+
+    return {
+      member,
+      assignedTasks,
+      livePairings,
+      inFlightFiles,
+      authoredOpenQuestions,
+      pendingSignoffs,
+      shippedCount,
+      readyCount,
+    };
+  });
+
+  const activeMyrmexTasks = tasks.filter((t) => t.myrmex && t.column !== "done");
+  const activeMyrmexCount = activeMyrmexTasks.length;
+  const filesInFlight = activeMyrmexTasks.reduce(
+    (sum, t) => sum + (t.myrmex?.filesChanged ?? 0),
+    0,
+  );
+  const branchSet = new Set(
+    activeMyrmexTasks
+      .map((t) => t.myrmex?.branchName)
+      .filter((b): b is string => typeof b === "string" && b.length > 0),
+  );
+  const branchesInFlight = Array.from(branchSet);
+  const branchesInFlightCount = branchesInFlight.length;
+
+  const blockerCount = tasks.filter(
+    (t) => t.column === "review" && t.reviewComments.some((c) => !c.isSteeringPrompt),
+  ).length;
+
+  const shippedCount = tasks.filter((t) => t.column === "done").length;
+
+  return {
+    fleet: {
+      activeMyrmexCount,
+      filesInFlight,
+      branchesInFlightCount,
+      branchesInFlight,
+      blockerCount,
+      shippedCount,
+      totalHumans: members.length,
+      onlineHumans: members.filter((m) => m.status === "online").length,
+    },
+    roster,
+  };
+}
+
 const EMPTY_NEVER_ATOM = Atom.make(() => AsyncResult.initial()).pipe(
   Atom.withLabel("mound:colony:never"),
 );
@@ -615,15 +750,28 @@ export default function MoundApp() {
     { id: "review", label: "Mid-Work Review" },
     { id: "done", label: "Shipped" },
   ];
-  const visible = state.tasks.filter((t) =>
-    filter === "all"
-      ? true
-      : filter === "mine"
-        ? t.assigneeId === me.id
-        : filter === "myrmex"
-          ? !!t.myrmex
-          : t.column === "review",
-  );
+  const hud = deriveSquadronHUD(state);
+  const visible = state.tasks.filter((t) => {
+    if (filter === "all") return true;
+    if (filter === "mine") return t.assigneeId === me.id;
+    if (filter === "myrmex") return !!t.myrmex;
+    if (filter === "review") return t.column === "review";
+    if (filter.startsWith("member:")) {
+      const memberId = filter.slice(7);
+      const targetMember = state.members.find((m) => m.id === memberId);
+      if (t.assigneeId === memberId) return true;
+      if (t.reviewComments.some((c) => c.authorId === memberId)) return true;
+      if (
+        t.column === "review" &&
+        targetMember &&
+        !(t.approvals ?? []).some((a) => a.role === targetMember.role)
+      ) {
+        return true;
+      }
+      return false;
+    }
+    return true;
+  });
   const inboxTasks = Array.from(
     new Map(
       state.tasks
@@ -1155,7 +1303,417 @@ export default function MoundApp() {
 
       {view === "board" && (
         <main style={{ padding: 14 }}>
-          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+          {/* Squadron HUD: Human-Agent Pairing Matrix */}
+          <section
+            style={{
+              background: C.panel,
+              border: C.border,
+              borderRadius: 8,
+              padding: 12,
+              marginBottom: 12,
+            }}
+          >
+            {/* Fleet Telemetry Strip */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingBottom: 10,
+                borderBottom: C.border,
+                flexWrap: "wrap",
+                gap: 10,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: 0.8,
+                    textTransform: "uppercase",
+                    color: C.dim,
+                    fontFamily: "ui-monospace, monospace",
+                  }}
+                >
+                  Squadron HUD · Human-Agent Pairing Matrix
+                </span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  fontSize: 11,
+                  fontFamily: "ui-monospace, monospace",
+                  flexWrap: "wrap",
+                }}
+              >
+                <span style={{ color: C.text }}>
+                  ● {hud.fleet.totalHumans} Humans{" "}
+                  <span style={{ color: C.dim }}>({hud.fleet.onlineHumans} online)</span>
+                </span>
+                <span style={{ color: C.amber, fontWeight: 700 }}>
+                  ⚡ {hud.fleet.activeMyrmexCount} Myrmex Active
+                </span>
+                <span style={{ color: C.text }}>
+                  {hud.fleet.filesInFlight} files in flight{" "}
+                  <span style={{ color: C.dim }}>({hud.fleet.branchesInFlightCount} branches)</span>
+                </span>
+                <span
+                  style={{
+                    color: hud.fleet.blockerCount > 0 ? C.amber : C.dim,
+                    fontWeight: hud.fleet.blockerCount > 0 ? 700 : 500,
+                  }}
+                >
+                  ⚠ {hud.fleet.blockerCount} Blocker{hud.fleet.blockerCount === 1 ? "" : "s"}
+                </span>
+                <span style={{ color: C.green, fontWeight: 600 }}>
+                  ✓ {hud.fleet.shippedCount} Shipped
+                </span>
+              </div>
+            </div>
+
+            {/* Member Squadron Cards Grid */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 10,
+                marginTop: 10,
+                alignItems: "stretch",
+              }}
+            >
+              {hud.roster.map((entry) => {
+                const isFiltered = filter === `member:${entry.member.id}`;
+                const roleLabel =
+                  entry.member.role === "eng"
+                    ? "Staff Eng"
+                    : entry.member.role === "pm"
+                      ? "Product Manager"
+                      : "Platform Reviewer";
+
+                const targetJumpTaskId =
+                  entry.livePairings[0]?.taskId ??
+                  entry.authoredOpenQuestions[0]?.taskId ??
+                  entry.pendingSignoffs[0]?.id ??
+                  entry.assignedTasks[0]?.id ??
+                  task?.id;
+
+                return (
+                  <article
+                    key={entry.member.id}
+                    onClick={() => {
+                      setFilter((prev) =>
+                        prev === `member:${entry.member.id}` ? "all" : `member:${entry.member.id}`,
+                      );
+                    }}
+                    style={{
+                      background: C.panel2,
+                      border: isFiltered ? `1px solid ${C.amber}` : C.border,
+                      borderRadius: 8,
+                      padding: 10,
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      cursor: "pointer",
+                      transition: "border-color 0.15s ease",
+                    }}
+                  >
+                    <div>
+                      {/* Member identity header */}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          marginBottom: 6,
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: "50%",
+                              background: entry.member.avatarColor,
+                              color: "#111",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 10,
+                              fontWeight: 800,
+                            }}
+                          >
+                            {entry.member.name[0]}
+                          </span>
+                          <div>
+                            <span style={{ fontWeight: 700, fontSize: 12, color: C.text }}>
+                              {entry.member.name}
+                            </span>
+                            <span style={{ color: C.dim, fontSize: 11, marginLeft: 6 }}>
+                              {roleLabel}
+                            </span>
+                          </div>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 600,
+                            color: entry.member.status === "online" ? C.green : C.sky,
+                            background: C.panel,
+                            border: C.border,
+                            borderRadius: 4,
+                            padding: "1px 5px",
+                            fontFamily: "ui-monospace, monospace",
+                          }}
+                        >
+                          ● {entry.member.status}
+                        </span>
+                      </div>
+
+                      {/* Workload / Assignment telemetry */}
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: C.dim,
+                          fontFamily: "ui-monospace, monospace",
+                          marginBottom: 8,
+                        }}
+                      >
+                        Assigned: {entry.assignedTasks.length} task
+                        {entry.assignedTasks.length === 1 ? "" : "s"}
+                        {entry.inFlightFiles > 0 ? ` · +${entry.inFlightFiles} files` : ""}
+                        {entry.shippedCount > 0 ? ` · ${entry.shippedCount} shipped` : ""}
+                        {entry.readyCount > 0 ? ` · ${entry.readyCount} ready` : ""}
+                      </div>
+
+                      {/* Live Agent Lines */}
+                      {entry.livePairings.length > 0 ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 4,
+                            marginBottom: 8,
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              color: C.amber,
+                              textTransform: "uppercase",
+                              letterSpacing: 0.5,
+                              fontFamily: "ui-monospace, monospace",
+                            }}
+                          >
+                            ⚡ Paired Myrmex ({entry.livePairings.length})
+                          </div>
+                          {entry.livePairings.map((pairing) => (
+                            <div
+                              key={pairing.taskId}
+                              style={{
+                                background: C.panel,
+                                border: C.border,
+                                borderRadius: 6,
+                                padding: "6px 8px",
+                                fontSize: 11,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  gap: 6,
+                                  marginBottom: 2,
+                                }}
+                              >
+                                <span style={{ color: C.amber, fontWeight: 600 }}>
+                                  ● {pairing.provider}
+                                  {pairing.model ? ` (${pairing.model})` : ""} · {pairing.status}
+                                </span>
+                                <span
+                                  style={{
+                                    fontFamily: "ui-monospace, monospace",
+                                    fontSize: 10,
+                                    color: C.dim,
+                                  }}
+                                >
+                                  +{pairing.filesChanged} files
+                                </span>
+                              </div>
+                              <div
+                                style={{
+                                  fontFamily: "ui-monospace, monospace",
+                                  fontSize: 10,
+                                  color: C.sky,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  marginBottom: 2,
+                                }}
+                              >
+                                {pairing.branchName ?? pairing.taskId}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: C.dim,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                ↳ {pairing.lastAction}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: C.dim,
+                            background: C.panel,
+                            border: C.border,
+                            borderRadius: 6,
+                            padding: "6px 8px",
+                            marginBottom: 8,
+                            fontStyle: "italic",
+                          }}
+                        >
+                          No active Myrmex agents
+                        </div>
+                      )}
+
+                      {/* Burden Chips */}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                        {entry.authoredOpenQuestions.length > 0 && (
+                          <div
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 600,
+                              color: C.amber,
+                              background: C.panel,
+                              border: `1px solid ${C.amber}`,
+                              borderRadius: 4,
+                              padding: "2px 6px",
+                              lineHeight: 1.3,
+                            }}
+                            title={entry.authoredOpenQuestions[0]?.content}
+                          >
+                            ⚠ {entry.authoredOpenQuestions.length} Blocker
+                            {entry.authoredOpenQuestions.length === 1 ? "" : "s"}:{" "}
+                            {entry.authoredOpenQuestions[0]?.taskId}
+                          </div>
+                        )}
+                        {entry.pendingSignoffs.length > 0 && (
+                          <div
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 600,
+                              color: C.sky,
+                              background: C.panel,
+                              border: C.border,
+                              borderRadius: 4,
+                              padding: "2px 6px",
+                              lineHeight: 1.3,
+                            }}
+                            title={`Pending sign-off on ${entry.pendingSignoffs.map((t) => t.id).join(", ")}`}
+                          >
+                            ○ {entry.pendingSignoffs.length} Pending Sign-off
+                            {entry.pendingSignoffs.length === 1 ? "" : "s"}
+                          </div>
+                        )}
+                        {entry.authoredOpenQuestions.length === 0 &&
+                          entry.pendingSignoffs.length === 0 && (
+                            <div
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                color: C.green,
+                                background: C.panel,
+                                border: C.border,
+                                borderRadius: 4,
+                                padding: "2px 6px",
+                              }}
+                            >
+                              ✓ Clear · No review burden
+                            </div>
+                          )}
+                      </div>
+                    </div>
+
+                    {/* Action buttons row: Filter Board toggle and cockpit jump button */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        marginTop: 4,
+                        paddingTop: 6,
+                        borderTop: C.border,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFilter((prev) =>
+                            prev === `member:${entry.member.id}`
+                              ? "all"
+                              : `member:${entry.member.id}`,
+                          );
+                        }}
+                        style={{
+                          ...btn(isFiltered),
+                          flex: 1,
+                          fontSize: 11,
+                          padding: "4px 8px",
+                          borderColor: isFiltered ? C.amber : undefined,
+                        }}
+                      >
+                        {isFiltered ? "✕ Clear Filter" : "Filter Board"}
+                      </button>
+                      {targetJumpTaskId ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelected(targetJumpTaskId);
+                            setView("cockpit");
+                          }}
+                          style={{
+                            ...btn(),
+                            fontSize: 11,
+                            padding: "4px 8px",
+                            whiteSpace: "nowrap",
+                          }}
+                          title={`Jump to Cockpit for ${targetJumpTaskId}`}
+                        >
+                          Cockpit →
+                        </button>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Filter Bar with Member Clear Chip */}
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              marginBottom: 12,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
             {[
               { id: "all", label: "All Tasks" },
               { id: "mine", label: "My Tasks" },
@@ -1171,6 +1729,28 @@ export default function MoundApp() {
                 {f.label}
               </button>
             ))}
+            {filter.startsWith("member:") &&
+              (() => {
+                const memberId = filter.slice(7);
+                const target = state.members.find((m) => m.id === memberId);
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setFilter("all")}
+                    style={{
+                      ...btn(true),
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      borderColor: C.amber,
+                    }}
+                    title="Clear member filter"
+                  >
+                    <span>Member: {target ? target.name : memberId}</span>
+                    <span style={{ fontSize: 11, opacity: 0.85 }}>✕ Clear</span>
+                  </button>
+                );
+              })()}
           </div>
           <div
             style={{

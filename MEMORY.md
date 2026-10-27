@@ -69,3 +69,11 @@
 - Contracts: `TaskApproval` + optional `SdlcTask.approvals`. Seeds (server `seedDemoColony()` + web `seed()`): MND-102 Eng-only (1/3, PM blocked, Reviewer pending), MND-100 all three (3/3). Web: `deriveConsensus()`, Cockpit gate strip + Sign off / Withdraw for current role in review, merge button disabled until 3/3, Board `Consensus X/3` pill. Persists via existing `colony.updateTask`; no new RPC. tagy landed contract+server seed then interrupted; web built directly.
 - Verification: typecheck 35/35, web build passed, colonyManager.test.ts 5/5, smoke `MND-102 approvals eng MND-100 approvals 3`, oxlint 0 on touched files, `vp fmt` applied.
 - Next: Pairing Rail is runner-up; Conflict Radar still waits on real per-branch file lists. A pre-existing dev server on `.t3-verify` (ports 5733/13773) was left running untouched; its `.t3-verify/` runtime writes were excluded from the commit.
+
+## 2026-10-27 — Overnight iteration 9 (Product Council: Squadron HUD)
+
+- Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B council via tagy (`/tmp/council9-tagy.md`) + Grok critique (`agent --model grok-4.7-high`).
+- Council winner: Human-Agent Pairing Matrix / Squadron HUD (tagy 15, Grok-rescored 12) over Diff Steer Bar (13→8, fake line addresses on a template diff) and Standup Digest (13→10, overnight framing not in data). Grok corrections applied: in-flight excludes done (6 files/2 branches), no sign-off bypass in HUD.
+- Built (tagy, reviewed locally): `deriveSquadronHUD()` in `MoundApp.tsx` (per-member live pairings, in-flight files, authored blockers, pending sign-offs via `deriveConsensus`, shipped/ready; fleet totals), HUD section atop Colony Board (telemetry strip + member cards), `member:<id>` board filtering with clear chip, Cockpit jump. Pure client derivation, no new contract/RPC. Local polish: dropped one emoji glyph from the fleet strip.
+- Verification: typecheck 35/35, web build passed, colonyManager.test.ts 5/5, smoke `SMOKE Gateway Foundations Colony 5 tasks 3 members`, oxlint 0 on MoundApp, seed probe `filesInFlight 6 branches 2 active 2`.
+- Next: Conflict Radar still waits on real per-branch file lists; a live provider run still needs a project in the dev DB.
