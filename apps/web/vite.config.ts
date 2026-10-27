@@ -13,10 +13,11 @@ import * as Hash from "effect/Hash";
 import pkg from "./package.json" with { type: "json" };
 import pdfjsPkg from "pdfjs-dist/package.json" with { type: "json" };
 
+// Node strips types in this config, but refuses .ts files resolved through node_modules.
 import {
   DEV_PROXIED_ORIGIN_PRESERVING_PREFIXES,
   DEV_PROXIED_PATH_PREFIXES,
-} from "@t3tools/shared/devProxy";
+} from "../../packages/shared/src/devProxy.ts";
 
 import { loadRepoEnv } from "../../scripts/lib/public-config";
 import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses";
