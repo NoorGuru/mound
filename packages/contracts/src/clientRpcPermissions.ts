@@ -56,6 +56,7 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   [WS_METHODS.colonySummonMyrmex]: AuthOrchestrationOperateScope,
   [WS_METHODS.colonySteerSession]: AuthOrchestrationOperateScope,
   [WS_METHODS.colonyAddComment]: AuthOrchestrationOperateScope,
+  [WS_METHODS.colonyCreateHandoff]: AuthOrchestrationOperateScope,
   [WS_METHODS.colonySeedDemo]: AuthOrchestrationOperateScope,
   // A guest link hands thread access to someone outside, like a pairing link.
   [WS_METHODS.guestShareCreate]: AuthAccessWriteScope,

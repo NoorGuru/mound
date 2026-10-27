@@ -382,6 +382,7 @@ import { VcsError } from "./vcs.ts";
 import { Project, ProjectMutation, ProjectMutationError } from "./project.ts";
 import {
   ColonyAddCommentInput,
+  ColonyCreateHandoffInput,
   ColonyCreateTaskInput,
   ColonySaveSpecInput,
   ColonyState,
@@ -602,6 +603,7 @@ export const WS_METHODS = {
   colonySummonMyrmex: "colony.summonMyrmex",
   colonySteerSession: "colony.steerSession",
   colonyAddComment: "colony.addComment",
+  colonyCreateHandoff: "colony.createHandoff",
   colonySeedDemo: "colony.seedDemo",
   colonySubscribe: "colony.subscribe",
 } as const;
@@ -1852,6 +1854,12 @@ const WsColonyAddCommentRpc = Rpc.make(WS_METHODS.colonyAddComment, {
   error: EnvironmentAuthorizationError,
 });
 
+const WsColonyCreateHandoffRpc = Rpc.make(WS_METHODS.colonyCreateHandoff, {
+  payload: ColonyCreateHandoffInput,
+  success: ColonyState,
+  error: EnvironmentAuthorizationError,
+});
+
 const WsColonySeedDemoRpc = Rpc.make(WS_METHODS.colonySeedDemo, {
   payload: Schema.Struct({}),
   success: ColonyState,
@@ -2199,6 +2207,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsColonySummonMyrmexRpc,
   WsColonySteerSessionRpc,
   WsColonyAddCommentRpc,
+  WsColonyCreateHandoffRpc,
   WsColonySeedDemoRpc,
   WsColonySubscribeRpc,
 ).middleware(RpcScopeAuthorization);

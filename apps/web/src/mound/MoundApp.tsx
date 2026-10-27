@@ -1,10 +1,11 @@
 import { useAtomValue } from "@effect/atom-react";
-import type { ColonyState, SdlcTask } from "@t3tools/contracts";
+import type { ColonyState, HandoffPacket, SdlcTask } from "@t3tools/contracts";
 import { AsyncResult, Atom } from "effect/reactivity";
 import { useEffect, useRef, useState } from "react";
 import { usePrimaryEnvironmentId } from "../state/environments";
 import { useAtomCommand } from "../state/use-atom-command";
 import {
+  colonyCreateHandoff,
   colonyCreateTask,
   colonySaveSpec,
   colonySeedDemo,
@@ -89,6 +90,24 @@ const seed = (): ColonyState => {
           status: "waiting_review",
           filesChanged: 2,
           lastAction: "Waiting for mid-work review",
+        },
+        handoff: {
+          id: "handoff-seed-102",
+          taskId: "MND-102",
+          createdById: "noor",
+          createdByName: "Noor",
+          summary:
+            "MND-102 429 + Retry-After responses: Return HTTP 429 with Retry-After when the bucket is empty.",
+          branchName: "feat/429-retry-after",
+          providerStatus: "Codex · waiting_review",
+          filesChanged: 2,
+          lastAction: "Waiting for mid-work review",
+          openQuestions: [
+            "Sarah: Should Retry-After be seconds or an HTTP date? Clients prefer seconds.",
+          ],
+          suggestedNextStep:
+            "Answer the open question first: Sarah: Should Retry-After be seconds or an HTTP date? Clients prefer seconds.",
+          createdAt: at,
         },
         reviewComments: [
           {
@@ -199,6 +218,7 @@ export default function MoundApp() {
   const runCreateTask = useAtomCommand(colonyCreateTask, { reportFailure: false });
   const runSummon = useAtomCommand(colonySummonMyrmex, { reportFailure: false });
   const runSteer = useAtomCommand(colonySteerSession, { reportFailure: false });
+  const runCreateHandoff = useAtomCommand(colonyCreateHandoff, { reportFailure: false });
   const runSeedDemo = useAtomCommand(colonySeedDemo, { reportFailure: false });
 
   const serverColony = useAtomValue(
@@ -213,6 +233,7 @@ export default function MoundApp() {
   const [selected, setSelected] = useState("MND-102");
   const [steer, setSteer] = useState("");
   const [filter, setFilter] = useState("all");
+  const [copiedPacket, setCopiedPacket] = useState(false);
   const me = state.members.find((m) => m.id === roleId) ?? state.members[0]!;
   const spec = state.specs[0]!;
   const task = state.tasks.find((t) => t.id === selected) ?? state.tasks[0]!;
@@ -330,6 +351,70 @@ export default function MoundApp() {
       void runSteer({ environmentId, input: { taskId: task.id, comment } });
     }
     setSteer("");
+  };
+
+  const createHandoff = (t: SdlcTask): HandoffPacket => {
+    // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
+    const at = new Date().toISOString();
+    const openQuestions = t.reviewComments
+      .filter((c) => !c.isSteeringPrompt)
+      .map((c) => `${c.authorName}: ${c.content}`);
+    const status = t.myrmex?.status ?? "idle";
+    const suggestedNextStep =
+      openQuestions.length > 0
+        ? `Answer the open question first: ${openQuestions[0]}`
+        : status === "paused"
+          ? "Resume the Myrmex and confirm the pause reason is resolved."
+          : status === "waiting_review"
+            ? "Review the live diff in the Cockpit, then Approve & Merge or Send & Steer."
+            : status === "coding"
+              ? "Watch telemetry in the Cockpit; steer if the current step drifts from the task."
+              : "Summon a Myrmex from the Colony Board to start work.";
+
+    const packet: HandoffPacket = {
+      // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
+      id: `handoff-${Date.now()}`,
+      taskId: t.id,
+      createdById: me.id,
+      createdByName: me.name,
+      summary: `${t.id} ${t.title}: ${t.description}`,
+      ...(t.myrmex?.branchName ? { branchName: t.myrmex.branchName } : {}),
+      providerStatus: t.myrmex ? `${t.myrmex.provider} · ${status}` : "No Myrmex attached",
+      filesChanged: t.myrmex?.filesChanged ?? 0,
+      lastAction: t.myrmex?.lastAction ?? "No agent activity yet",
+      openQuestions,
+      suggestedNextStep,
+      createdAt: at,
+    };
+
+    patchTask(t.id, { handoff: packet });
+    if (environmentId !== null) {
+      void runCreateHandoff({
+        environmentId,
+        input: { taskId: t.id, actor: me },
+      });
+    }
+    return packet;
+  };
+
+  const copyPacket = (t: SdlcTask) => {
+    const h = t.handoff ?? createHandoff(t);
+    const text = [
+      `=== HANDOFF PACKET: ${h.taskId} ===`,
+      `Summary: ${h.summary}`,
+      `Created By: ${h.createdByName} (${h.createdAt})`,
+      `Branch: ${h.branchName ?? "none"}`,
+      `Provider Status: ${h.providerStatus}`,
+      `Files Changed: ${h.filesChanged}`,
+      `Last Action: ${h.lastAction}`,
+      `Open Questions:`,
+      ...(h.openQuestions.length > 0 ? h.openQuestions.map((q) => `  - ${q}`) : ["  (none)"]),
+      `Suggested Next Step: ${h.suggestedNextStep}`,
+    ].join("\n");
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopiedPacket(true);
+      setTimeout(() => setCopiedPacket(false), 2000);
+    });
   };
 
   const extractTasks = () => {
@@ -598,6 +683,11 @@ export default function MoundApp() {
                       </div>
                       <div style={{ fontWeight: 600, margin: "4px 0" }}>{t.title}</div>
                       <div style={{ color: C.dim, fontSize: 12 }}>{t.description}</div>
+                      {t.handoff ? (
+                        <div style={{ color: C.sky, fontSize: 11, marginTop: 6 }}>
+                          Handoff ready · by {t.handoff.createdByName}
+                        </div>
+                      ) : null}
                       {t.myrmex ? (
                         <div style={{ marginTop: 8, color: C.amber, fontSize: 11 }}>
                           ● {t.myrmex.provider} · {t.myrmex.lastAction} · +{t.myrmex.filesChanged}{" "}
@@ -654,7 +744,10 @@ export default function MoundApp() {
             <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
               <select
                 value={task.id}
-                onChange={(e) => setSelected(e.target.value)}
+                onChange={(e) => {
+                  setSelected(e.target.value);
+                  setCopiedPacket(false);
+                }}
                 style={{
                   background: C.panel2,
                   color: C.text,
@@ -832,6 +925,138 @@ export default function MoundApp() {
               Send &amp; Steer Myrmex
             </button>
           </div>
+
+          <section
+            style={{
+              background: C.panel,
+              border: C.border,
+              borderRadius: 8,
+              padding: 12,
+              marginTop: 12,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                marginBottom: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <h4
+                  style={{
+                    fontSize: 11,
+                    color: C.dim,
+                    margin: 0,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  Handoff Packet
+                </h4>
+                {task.handoff ? (
+                  <span style={{ color: C.sky, fontSize: 11 }}>
+                    Handoff ready · by {task.handoff.createdByName}
+                  </span>
+                ) : (
+                  <span style={{ color: C.dim, fontSize: 11 }}>Not generated</span>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button type="button" style={btn(true)} onClick={() => createHandoff(task)}>
+                  {task.handoff ? "Refresh Handoff Packet" : "Create Handoff Packet"}
+                </button>
+                <button type="button" style={btn()} onClick={() => copyPacket(task)}>
+                  {copiedPacket ? "Copied!" : "Copy Packet"}
+                </button>
+              </div>
+            </div>
+
+            {task.handoff ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>
+                  {task.handoff.summary}
+                </div>
+                <div
+                  style={{
+                    color: C.dim,
+                    fontSize: 11,
+                    fontFamily: "ui-monospace, monospace",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 12,
+                  }}
+                >
+                  <span>
+                    Branch:{" "}
+                    <span style={{ color: C.text }}>{task.handoff.branchName ?? "none"}</span>
+                  </span>
+                  <span>
+                    Provider: <span style={{ color: C.text }}>{task.handoff.providerStatus}</span>
+                  </span>
+                  <span>
+                    Files: <span style={{ color: C.text }}>+{task.handoff.filesChanged}</span>
+                  </span>
+                  <span>
+                    Last Action: <span style={{ color: C.text }}>{task.handoff.lastAction}</span>
+                  </span>
+                </div>
+                <div
+                  style={{
+                    background: C.panel2,
+                    border: C.border,
+                    borderRadius: 6,
+                    padding: 8,
+                  }}
+                >
+                  <div style={{ color: C.dim, fontSize: 11, marginBottom: 4, fontWeight: 600 }}>
+                    Open Questions ({task.handoff.openQuestions.length}):
+                  </div>
+                  {task.handoff.openQuestions.length === 0 ? (
+                    <div style={{ color: C.dim, fontSize: 11 }}>No open questions.</div>
+                  ) : (
+                    <ul
+                      style={{
+                        margin: 0,
+                        paddingLeft: 16,
+                        fontSize: 12,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {task.handoff.openQuestions.map((q) => (
+                        <li key={q} style={{ color: C.text }}>
+                          {q}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div
+                  style={{
+                    background: C.panel2,
+                    border: "1px solid rgba(229, 124, 35, 0.4)",
+                    borderRadius: 6,
+                    padding: 8,
+                  }}
+                >
+                  <span style={{ color: C.amber, fontWeight: 600, fontSize: 11 }}>
+                    Suggested Next Step:{" "}
+                  </span>
+                  <span style={{ color: C.text, fontSize: 12 }}>
+                    {task.handoff.suggestedNextStep}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p style={{ color: C.dim, margin: "4px 0", fontSize: 12 }}>
+                No handoff packet generated yet. Click &quot;Create Handoff Packet&quot; to
+                synthesize session state, open questions, and recommended next steps for your team.
+              </p>
+            )}
+          </section>
         </main>
       )}
     </div>

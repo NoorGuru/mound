@@ -81,6 +81,22 @@ export const MidWorkComment = Schema.Struct({
 });
 export type MidWorkComment = typeof MidWorkComment.Type;
 
+export const HandoffPacket = Schema.Struct({
+  id: TrimmedNonEmptyString,
+  taskId: TrimmedNonEmptyString,
+  createdById: TrimmedNonEmptyString,
+  createdByName: TrimmedNonEmptyString,
+  summary: Schema.String,
+  branchName: Schema.optional(TrimmedNonEmptyString),
+  providerStatus: Schema.String,
+  filesChanged: Schema.Int,
+  lastAction: Schema.String,
+  openQuestions: Schema.Array(Schema.String),
+  suggestedNextStep: Schema.String,
+  createdAt: Schema.String,
+});
+export type HandoffPacket = typeof HandoffPacket.Type;
+
 export const SdlcTask = Schema.Struct({
   id: TrimmedNonEmptyString,
   specId: Schema.optional(TrimmedNonEmptyString),
@@ -89,6 +105,7 @@ export const SdlcTask = Schema.Struct({
   column: SdlcTaskColumn,
   assigneeId: TrimmedNonEmptyString,
   myrmex: Schema.optional(MyrmexSession),
+  handoff: Schema.optional(HandoffPacket),
   reviewComments: Schema.Array(MidWorkComment),
   updatedAt: Schema.String,
 });
@@ -103,6 +120,7 @@ export const ActivityEventKind = Schema.Literals([
   "comment_added",
   "steer_sent",
   "task_approved",
+  "handoff_created",
   "demo_seeded",
 ]);
 export type ActivityEventKind = typeof ActivityEventKind.Type;
@@ -158,6 +176,12 @@ export const ColonyAddCommentInput = Schema.Struct({
 });
 export type ColonyAddCommentInput = typeof ColonyAddCommentInput.Type;
 
+export const ColonyCreateHandoffInput = Schema.Struct({
+  taskId: TrimmedNonEmptyString,
+  actor: TeamMember,
+});
+export type ColonyCreateHandoffInput = typeof ColonyCreateHandoffInput.Type;
+
 export const ColonyRpcMethods = [
   "colony.getState",
   "colony.saveSpec",
@@ -166,6 +190,7 @@ export const ColonyRpcMethods = [
   "colony.summonMyrmex",
   "colony.steerSession",
   "colony.addComment",
+  "colony.createHandoff",
   "colony.seedDemo",
   "colony.subscribe",
 ] as const;

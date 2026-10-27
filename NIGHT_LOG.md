@@ -27,3 +27,12 @@
 - 2.3 closed: colony summon launches a real orchestration thread in an isolated worktree when a project/provider is available; steer interrupts + sends to the live thread; provider run/checkpoint events sync onto Colony Board telemetry live. Graceful demo fallback preserved.
 - Verification: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed, colonyManager.test.ts 3/3, check:changed tests 69 passed, lint clean on touched files. Knip second pass OOM in this sandbox (environment, not code).
 - All MOUND_PLAN items now [x]. Next iteration: Product Council (CASE B) or a live provider run once a project exists in the dev DB.
+
+## 2026-10-27 — Iteration 5 (Product Council, CASE B): SHIPPED & VERIFIED ✅
+
+- Council candidates scored (Alignment / Visual-Demo / Self-contained, /5 each):
+  1. **Handoff Packet (WINNER, 15):** one click turns a stuck/paused task into a packet (summary, branch, provider status, files, last action, open questions, suggested next step) a teammate can pick up. 5/5/5: core multiplayer handoff, visible in Cockpit + Board badge, derived entirely from existing ColonyState.
+  2. Worktree Conflict Radar (11): 4/5/2. Strong demo visual, but needs real overlapping file data across branches; the demo has one hardcoded diff, so it would fake its core signal.
+  3. PM Live Diff Summary Card (10): 3/4/3. Useful PM view, mostly one-way (less multiplayer), and a real summary needs a provider call over a real diff.
+- Built the winner: `HandoffPacket` contract + `colony.createHandoff` RPC (contracts, server auth/instrumentation, client guards), `ColonyManager.createHandoff` (server-authoritative packet + `handoff_created` activity, broadcast via existing subscribe), Cockpit Handoff Packet panel with Create/Refresh + Copy Packet, Board "Handoff ready" badge, seeded packet on MND-102 so it is visible on first load. Web UI built by tagy, then reviewed and lint-fixed locally.
+- Verification: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed, `vp test run apps/server/src/colonyManager.test.ts` 4/4 (new handoff test). Lint on MoundApp is at the exact pre-existing baseline (3 purity / 4 em-dash / 1 title, all in untouched code); format fixed. `check:changed` knip still lists only pre-existing unused exports.

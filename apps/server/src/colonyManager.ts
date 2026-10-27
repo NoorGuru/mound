@@ -4,6 +4,7 @@ import * as NodePath from "node:path";
 
 import type {
   ColonyState,
+  HandoffPacket,
   MidWorkComment,
   MyrmexSession,
   ProductSpec,
@@ -20,6 +21,37 @@ export const DEMO_MEMBERS: Array<TeamMember> = [
   { id: "sarah", name: "Sarah", role: "pm", avatarColor: "#38BDF8", status: "online" },
   { id: "alex", name: "Alex", role: "reviewer", avatarColor: "#10B981", status: "reviewing" },
 ];
+
+function buildHandoffPacket(task: SdlcTask, actor: TeamMember, at: string): HandoffPacket {
+  const openQuestions = task.reviewComments
+    .filter((comment) => !comment.isSteeringPrompt)
+    .map((comment) => `${comment.authorName}: ${comment.content}`);
+  const status = task.myrmex?.status ?? "idle";
+  const suggestedNextStep =
+    openQuestions.length > 0
+      ? `Answer the open question first: ${openQuestions[0]}`
+      : status === "paused"
+        ? "Resume the Myrmex and confirm the pause reason is resolved."
+        : status === "waiting_review"
+          ? "Review the live diff in the Cockpit, then Approve & Merge or Send & Steer."
+          : status === "coding"
+            ? "Watch telemetry in the Cockpit; steer if the current step drifts from the task."
+            : "Summon a Myrmex from the Colony Board to start work.";
+  return {
+    id: uid("handoff"),
+    taskId: task.id,
+    createdById: actor.id,
+    createdByName: actor.name,
+    summary: `${task.id} ${task.title}: ${task.description}`,
+    ...(task.myrmex?.branchName === undefined ? {} : { branchName: task.myrmex.branchName }),
+    providerStatus: task.myrmex ? `${task.myrmex.provider} · ${status}` : "No Myrmex attached",
+    filesChanged: task.myrmex?.filesChanged ?? 0,
+    lastAction: task.myrmex?.lastAction ?? "No agent activity yet",
+    openQuestions,
+    suggestedNextStep,
+    createdAt: at,
+  };
+}
 
 export function seedDemoColony(): ColonyState {
   const at = now();
@@ -103,6 +135,24 @@ export function seedDemoColony(): ColonyState {
           status: "waiting_review",
           filesChanged: 2,
           lastAction: "Waiting for mid-work review",
+        },
+        handoff: {
+          id: "handoff-seed-102",
+          taskId: "MND-102",
+          createdById: "noor",
+          createdByName: "Noor",
+          summary:
+            "MND-102 429 + Retry-After responses: Return HTTP 429 with Retry-After when the bucket is empty.",
+          branchName: "feat/429-retry-after",
+          providerStatus: "Codex · waiting_review",
+          filesChanged: 2,
+          lastAction: "Waiting for mid-work review",
+          openQuestions: [
+            "Sarah: Should Retry-After be seconds or an HTTP date? Clients prefer seconds.",
+          ],
+          suggestedNextStep:
+            "Answer the open question first: Sarah: Should Retry-After be seconds or an HTTP date? Clients prefer seconds.",
+          createdAt: at,
         },
         reviewComments: [
           {
@@ -353,6 +403,32 @@ export class ColonyManager {
           }
         : task.myrmex,
     });
+  }
+
+  createHandoff(taskId: string, actor: TeamMember): ColonyState {
+    const task = this.state.tasks.find((entry) => entry.id === taskId);
+    if (!task) return this.state;
+    const packet = buildHandoffPacket(task, actor, now());
+    this.state = {
+      ...this.state,
+      tasks: this.state.tasks.map((entry) =>
+        entry.id === taskId ? { ...entry, handoff: packet, updatedAt: now() } : entry,
+      ),
+      activity: [
+        ...this.state.activity,
+        {
+          id: uid("ev"),
+          kind: "handoff_created" as const,
+          actorId: actor.id,
+          actorName: actor.name,
+          message: `Handoff packet ready for ${taskId}: ${packet.suggestedNextStep}`,
+          taskId,
+          createdAt: now(),
+        },
+      ],
+    };
+    this.persist();
+    return this.state;
   }
 
   addComment(taskId: string, comment: MidWorkComment): ColonyState {

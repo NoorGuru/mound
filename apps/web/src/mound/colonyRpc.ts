@@ -50,6 +50,11 @@ export const colonyAddComment = createEnvironmentRpcCommand(connectionAtomRuntim
   tag: WS_METHODS.colonyAddComment,
 });
 
+export const colonyCreateHandoff = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "mound:colony:create-handoff",
+  tag: WS_METHODS.colonyCreateHandoff,
+});
+
 export const colonySeedDemo = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "mound:colony:seed-demo",
   tag: WS_METHODS.colonySeedDemo,

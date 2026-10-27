@@ -2393,6 +2393,8 @@ export const layerWsRpc = (
         [WS_METHODS.colonySteerSession]: colonySteer,
         [WS_METHODS.colonyAddComment]: (input) =>
           Effect.sync(() => colony.addComment(input.taskId, input.comment)),
+        [WS_METHODS.colonyCreateHandoff]: (input) =>
+          Effect.sync(() => colony.createHandoff(input.taskId, input.actor)),
         [WS_METHODS.colonySeedDemo]: (_input) => Effect.sync(() => colony.seedDemo()),
         [WS_METHODS.colonySubscribe]: (_input) =>
           Stream.callback<ColonyState>(

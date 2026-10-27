@@ -38,3 +38,11 @@
 - Contracts: MyrmexSession.projectId added. ColonyManager: bindThread(projectId), updateMyrmex, applyProviderEvent.
 - Test: apps/server/src/colonyManager.test.ts (3 tests, bind/apply/ignore-unknown) passes; check:changed tests 69 passed, typecheck 35/35, web build green, lint 0 errors on touched files after em-dash copy fixes. Knip pass 2 OOMs in this environment (worker heap), not a code finding.
 - Honest scope: live launch only fires when the server has at least one project and an enabled+installed provider with models; otherwise summon remains the local demo binding. No live provider run was executed overnight (no project seeded in this workspace DB).
+
+## 2026-10-27 — Overnight iteration 5 (Product Council: Handoff Packet)
+
+- CASE B: all plan items were [x], so ran Product Council. Winner: Handoff Packet (15/15) over Conflict Radar (11) and PM Diff Summary (10); scoring in NIGHT_LOG.md.
+- Contracts: `HandoffPacket`, `SdlcTask.handoff?`, `handoff_created` activity kind, `colony.createHandoff` RPC + client guard. Server: `ColonyManager.createHandoff` builds packet from task/myrmex/comments, appends activity, persists/broadcasts; seed packet on MND-102. ws handler registered with auth (operate) + instrumentation.
+- Web (tagy, reviewed): Cockpit Handoff Packet panel (Create/Refresh, Copy Packet plain text), Board badge, local seed + offline packet builder mirroring server logic.
+- Verification: typecheck 35/35, web build green, colonyManager.test.ts 4/4. MoundApp lint = pre-existing baseline only.
+- Next: Conflict Radar becomes viable once real per-branch file lists land; a live provider run still needs a project in the dev DB.

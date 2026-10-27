@@ -221,6 +221,7 @@ const RPC_AGGREGATES = {
   [WS_METHODS.colonySummonMyrmex]: "colony",
   [WS_METHODS.colonySteerSession]: "colony",
   [WS_METHODS.colonyAddComment]: "colony",
+  [WS_METHODS.colonyCreateHandoff]: "colony",
   [WS_METHODS.colonySeedDemo]: "colony",
   [WS_METHODS.colonySubscribe]: "colony",
 } as const satisfies Readonly<Record<WsRpcMethod, string>>;

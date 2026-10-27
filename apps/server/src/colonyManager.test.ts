@@ -47,6 +47,20 @@ describe("ColonyManager provider binding", () => {
     assert.strictEqual(doneTask?.column, "review");
   });
 
+  it("creates a handoff packet from task state and logs activity", () => {
+    const colony = new ColonyManager();
+    const seeded = colony.getState().tasks.find((entry) => entry.id === "MND-102");
+    assert.strictEqual(seeded?.handoff?.branchName, "feat/429-retry-after");
+    const next = colony.createHandoff("MND-102", actor);
+    const task = next.tasks.find((entry) => entry.id === "MND-102");
+    assert.strictEqual(task?.handoff?.createdByName, "Noor");
+    assert.strictEqual(task?.handoff?.filesChanged, 2);
+    assert.strictEqual(task?.handoff?.openQuestions.length, 1);
+    assert.ok(task?.handoff?.suggestedNextStep.includes("Retry-After"));
+    assert.strictEqual(next.activity.at(-1)?.kind, "handoff_created");
+    assert.strictEqual(colony.createHandoff("MND-999", actor), next);
+  });
+
   it("ignores provider events for unbound threads", () => {
     const colony = new ColonyManager();
     const before = colony.getState();
