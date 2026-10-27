@@ -20,3 +20,4 @@
 - 3.3 DONE [x]: DesktopWindow title "Mound" (create + page-title-updated + did-finish-load), dark bg #0B0C0E, default size 1440x900.
 - Verification: typecheck 35/35, web build passed, ColonyManager smoke: summon MND-103 -> active feat/per-route-limit-config.
 - Next: wire MoundApp to colonyRpc atoms; then provider-thread binding design for summon/steer; 6.1/7.1 after.
+- Correction (same night): tagy finished after the iteration-2 commit — MoundApp.tsx IS now wired to colonyRpc (server subscription via useAtomValue + commands for update/summon/steer/create/seed/saveSpec-on-blur, local save kept as offline fallback). Verified: typecheck 35/35, web build passed. Unused colonyAddComment/colonyGetState imports removed.

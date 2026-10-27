@@ -14,3 +14,4 @@
 - 3.3 shipped: Mound window title, #0B0C0E background, 1440x900 default.
 - Web colonyRpc.ts ready; MoundApp atom wiring is next iteration's first task.
 - Verification: `bun run typecheck` 35/35 successful. `bun --filter @t3tools/web build` built. ColonyManager smoke printed active branch feat/per-route-limit-config.
+- Follow-up (same night): MoundApp RPC wiring landed and verified (typecheck 35/35, web build green) — committed separately.

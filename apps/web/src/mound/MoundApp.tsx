@@ -1,5 +1,18 @@
+import { useAtomValue } from "@effect/atom-react";
 import type { ColonyState, SdlcTask } from "@t3tools/contracts";
-import { useEffect, useState } from "react";
+import { AsyncResult, Atom } from "effect/reactivity";
+import { useEffect, useRef, useState } from "react";
+import { usePrimaryEnvironmentId } from "../state/environments";
+import { useAtomCommand } from "../state/use-atom-command";
+import {
+  colonyCreateTask,
+  colonySaveSpec,
+  colonySeedDemo,
+  colonyStateSubscription,
+  colonySteerSession,
+  colonySummonMyrmex,
+  colonyUpdateTask,
+} from "./colonyRpc";
 
 const KEY = "mound-colony-v1";
 const ROLE_KEY = "mound-role";
@@ -175,7 +188,25 @@ const btn = (primary = false): React.CSSProperties => ({
   fontWeight: primary ? 700 : 500,
 });
 
+const EMPTY_NEVER_ATOM = Atom.make(() => AsyncResult.initial()).pipe(
+  Atom.withLabel("mound:colony:never"),
+);
+
 export default function MoundApp() {
+  const environmentId = usePrimaryEnvironmentId();
+  const runSaveSpec = useAtomCommand(colonySaveSpec, { reportFailure: false });
+  const runUpdateTask = useAtomCommand(colonyUpdateTask, { reportFailure: false });
+  const runCreateTask = useAtomCommand(colonyCreateTask, { reportFailure: false });
+  const runSummon = useAtomCommand(colonySummonMyrmex, { reportFailure: false });
+  const runSteer = useAtomCommand(colonySteerSession, { reportFailure: false });
+  const runSeedDemo = useAtomCommand(colonySeedDemo, { reportFailure: false });
+
+  const serverColony = useAtomValue(
+    environmentId === null
+      ? EMPTY_NEVER_ATOM
+      : colonyStateSubscription({ environmentId, input: {} }),
+  );
+
   const [state, setState] = useState<ColonyState>(load);
   const [view, setView] = useState<View>("board");
   const [roleId, setRoleId] = useState(() => sessionStorage.getItem(ROLE_KEY) ?? "noor");
@@ -185,6 +216,20 @@ export default function MoundApp() {
   const me = state.members.find((m) => m.id === roleId) ?? state.members[0]!;
   const spec = state.specs[0]!;
   const task = state.tasks.find((t) => t.id === selected) ?? state.tasks[0]!;
+
+  const lastServerUpdatedAtRef = useRef<string | null>(null);
+
+  // oxlint-disable-next-line t3code/react-effect-budget -- server colony sync subscription
+  useEffect(() => {
+    if (
+      serverColony._tag === "Success" &&
+      serverColony.value.updatedAt !== lastServerUpdatedAtRef.current &&
+      serverColony.value.updatedAt !== state.updatedAt
+    ) {
+      lastServerUpdatedAtRef.current = serverColony.value.updatedAt;
+      setState(serverColony.value);
+    }
+  }, [serverColony, state.updatedAt]);
 
   const save = (next: ColonyState) => {
     setState(next);
@@ -224,16 +269,27 @@ export default function MoundApp() {
     };
   }, []);
 
-  const patchTask = (id: string, patch: Partial<SdlcTask>) =>
+  const patchTask = (id: string, patch: Partial<SdlcTask>) => {
+    let mergedTask: SdlcTask | undefined;
+    const now = new Date().toISOString();
+    const nextTasks = state.tasks.map((t) => {
+      if (t.id === id) {
+        mergedTask = { ...t, ...patch, updatedAt: now };
+        return mergedTask;
+      }
+      return t;
+    });
     save({
       ...state,
-      tasks: state.tasks.map((t) =>
-        t.id === id ? { ...t, ...patch, updatedAt: new Date().toISOString() } : t,
-      ),
-      updatedAt: new Date().toISOString(),
+      tasks: nextTasks,
+      updatedAt: now,
     });
+    if (environmentId !== null && mergedTask) {
+      void runUpdateTask({ environmentId, input: { task: mergedTask } });
+    }
+  };
 
-  const summon = (t: SdlcTask) =>
+  const summon = (t: SdlcTask) => {
     patchTask(t.id, {
       column: "active",
       myrmex: {
@@ -244,28 +300,38 @@ export default function MoundApp() {
         lastAction: `Summoned by ${me.name} — planning first change…`,
       },
     });
+    if (environmentId !== null) {
+      void runSummon({
+        environmentId,
+        input: { taskId: t.id, provider: "Claude Code", actor: me },
+      });
+    }
+  };
+
   const sendSteer = () => {
     if (!steer.trim() || !task) return;
+    const comment = {
+      id: `c-${Date.now()}`,
+      taskId: task.id,
+      authorId: me.id,
+      authorName: me.name,
+      authorRole: me.role,
+      content: steer.trim(),
+      isSteeringPrompt: true,
+      createdAt: new Date().toISOString(),
+    };
     patchTask(task.id, {
-      reviewComments: [
-        ...task.reviewComments,
-        {
-          id: `c-${Date.now()}`,
-          taskId: task.id,
-          authorId: me.id,
-          authorName: me.name,
-          authorRole: me.role,
-          content: steer.trim(),
-          isSteeringPrompt: true,
-          createdAt: new Date().toISOString(),
-        },
-      ],
+      reviewComments: [...task.reviewComments, comment],
       myrmex: task.myrmex
         ? { ...task.myrmex, status: "coding", lastAction: `Steered by ${me.name}` }
         : task.myrmex,
     });
+    if (environmentId !== null) {
+      void runSteer({ environmentId, input: { taskId: task.id, comment } });
+    }
     setSteer("");
   };
+
   const extractTasks = () => {
     const lines = spec.content
       .split("\n")
@@ -285,6 +351,11 @@ export default function MoundApp() {
         updatedAt: new Date().toISOString(),
       }));
     save({ ...state, tasks: [...state.tasks, ...fresh] });
+    if (environmentId !== null) {
+      for (const freshTask of fresh) {
+        void runCreateTask({ environmentId, input: { task: freshTask } });
+      }
+    }
     setView("board");
   };
 
@@ -386,7 +457,16 @@ export default function MoundApp() {
               </option>
             ))}
           </select>
-          <button type="button" style={btn()} onClick={() => save(seed())}>
+          <button
+            type="button"
+            style={btn()}
+            onClick={() => {
+              save(seed());
+              if (environmentId !== null) {
+                void runSeedDemo({ environmentId, input: {} });
+              }
+            }}
+          >
             Reset Demo State
           </button>
         </span>
@@ -409,6 +489,11 @@ export default function MoundApp() {
             <textarea
               value={spec.content}
               onChange={(e) => save({ ...state, specs: [{ ...spec, content: e.target.value }] })}
+              onBlur={() => {
+                if (environmentId !== null) {
+                  void runSaveSpec({ environmentId, input: { spec } });
+                }
+              }}
               style={{
                 width: "100%",
                 minHeight: 380,
