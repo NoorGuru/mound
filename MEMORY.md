@@ -1,5 +1,13 @@
 # Mound Memory
 
+## 2026-10-27 — Overnight iteration 16 (Product Council: Manual New Task Composer)
+
+- Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B. Council: tagy (`/tmp/council16-tagy.md`: New Task 14 / Reopen 14 / Cmd-K 13) + Grok critique (New Task 14, Reopen 11, Cmd-K 10). Winner: Manual New Task Quick Composer (5/4/5) — `colonyCreateTask` existed end to end with Extract Tasks as its only caller; the Board had no manual creation path. Reopen cut for idle-Myrmex/in-flight inflation; Cmd-K cut because the host already binds `mod+k` (`packages/shared/src/keybindings.ts`).
+- Critique correction: Grok flagged Extract's hardcoded `MND-105+i` would collide with a manually created MND-105. Both paths now share `nextTaskId()` (max suffix + 1, sequential per batch).
+- Built (tagy logic, UI finished locally after tagy interrupted): `nextTaskId()` + `createTaskManual()` + `+ New Task` composer in the Board filter bar of `MoundApp.tsx` (title/description, Enter submits, whitespace no-op, assignee select, `Created by {member} ({role})` fallback, next-ID preview) via existing `save()` + `colonyCreateTask`. No contract/server change. `.t3-verify/` runtime churn reverted, not committed.
+- Verification: typecheck 35/35, web build passed ("New Task" in mound chunk), colonyManager.test.ts 6/6, probe `MND-105 MND-106 noop` / `NEWTASK-OK`, oxlint 0 on MoundApp.
+- Next: two-window visual check still not run; a live provider run still needs a project in the dev DB.
+
 ## 2026-10-27 — Overnight iteration 15 (Product Council: Spec Discussion Composer)
 
 - Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B. Council: tagy full prompt errored `interrupted` (known fallback), Grok short-form returned Pulse/load-line/drift-chip — all rejected as HUD re-slices or fuzzy drift (MND-100 done with unchecked Req5 box is legitimate pre-Sync state). Winner: Spec Discussion Composer (13: 5/3/5) over Myrmex Resume (11, invisible first load, steer already resumes) and Command Bar ⌘K (13, navigation-only, host-palette collision; lost operational-leverage tiebreak). Honest subset of iteration-14's Spec Studio: composer only, no Req-prefix linking, no status toggle.

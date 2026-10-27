@@ -243,6 +243,20 @@ type TaskComment = SdlcTask["reviewComments"][number];
 const isResolutionComment = (c: TaskComment): boolean =>
   !c.isSteeringPrompt && c.content.startsWith(RESOLVED_PREFIX);
 
+function nextTaskId(tasks: ReadonlyArray<Pick<SdlcTask, "id">>): string {
+  let max = 100;
+  for (const t of tasks) {
+    const match = /(\d+)$/.exec(t.id);
+    if (match) {
+      const num = Number.parseInt(match[1]!, 10);
+      if (!Number.isNaN(num) && num > max) {
+        max = num;
+      }
+    }
+  }
+  return `MND-${max + 1}`;
+}
+
 // A question is open only when no later Resolved: comment answers it.
 function deriveOpenQuestions(task: SdlcTask): Array<TaskComment> {
   const comments = task.reviewComments;
@@ -629,6 +643,11 @@ export default function MoundApp() {
   const spec = state.specs[0]!;
   const task = state.tasks.find((t) => t.id === selected) ?? state.tasks[0]!;
 
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDesc, setNewTaskDesc] = useState("");
+  const [newTaskAssignee, setNewTaskAssignee] = useState(me.id);
+
   const lastServerUpdatedAtRef = useRef<string | null>(null);
 
   // oxlint-disable-next-line t3code/react-effect-budget -- server colony sync subscription
@@ -931,24 +950,63 @@ export default function MoundApp() {
     });
   };
 
+  const createTaskManual = () => {
+    const trimmedTitle = newTaskTitle.trim();
+    if (!trimmedTitle) return;
+    const trimmedDesc = newTaskDesc.trim();
+    const description = trimmedDesc || `Created by ${me.name} (${me.role})`;
+    const id = nextTaskId(state.tasks);
+    // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
+    const now = new Date().toISOString();
+    const newTask: SdlcTask = {
+      id,
+      specId: spec.id,
+      title: trimmedTitle,
+      description,
+      column: "todo",
+      assigneeId: newTaskAssignee || me.id,
+      reviewComments: [],
+      updatedAt: now,
+    };
+    save({
+      ...state,
+      tasks: [...state.tasks, newTask],
+      updatedAt: now,
+    });
+    if (environmentId !== null) {
+      void runCreateTask({ environmentId, input: { task: newTask } });
+    }
+    setNewTaskTitle("");
+    setNewTaskDesc("");
+    setNewTaskOpen(false);
+    setSelected(id);
+  };
+
   const extractTasks = () => {
     const lines = spec.content
       .split("\n")
       .filter((l) => l.includes("- [ ]"))
       .map((l) => l.replace(/.*- \[ \] /, "").trim());
     const existing = new Set(state.tasks.map((t) => t.title.toLowerCase()));
-    const fresh = lines
-      .filter((l) => !existing.has(l.toLowerCase()))
-      .map((title, i) => ({
-        id: `MND-${105 + i}`,
+    const freshLines = lines.filter((l) => !existing.has(l.toLowerCase()));
+    const currentTasks = [...state.tasks];
+    const fresh: SdlcTask[] = [];
+    // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
+    const now = new Date().toISOString();
+    for (const title of freshLines) {
+      const newTask: SdlcTask = {
+        id: nextTaskId(currentTasks),
         specId: spec.id,
         title,
         description: "Extracted from spec.",
-        column: "todo" as const,
+        column: "todo",
         assigneeId: me.id,
         reviewComments: [],
-        updatedAt: new Date().toISOString(),
-      }));
+        updatedAt: now,
+      };
+      fresh.push(newTask);
+      currentTasks.push(newTask);
+    }
     save({ ...state, tasks: [...state.tasks, ...fresh] });
     if (environmentId !== null) {
       for (const freshTask of fresh) {
@@ -1991,7 +2049,88 @@ export default function MoundApp() {
                   </button>
                 );
               })()}
+            <button
+              type="button"
+              onClick={() => setNewTaskOpen((open) => !open)}
+              style={{ ...btn(true), marginLeft: "auto" }}
+            >
+              + New Task
+            </button>
           </div>
+          {newTaskOpen && (
+            <div
+              style={{
+                background: C.panel2,
+                border: C.border,
+                borderRadius: 8,
+                padding: 10,
+                marginBottom: 12,
+                display: "flex",
+                gap: 6,
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
+              <input
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && createTaskManual()}
+                placeholder="New task title"
+                autoFocus
+                style={{
+                  flex: "2 1 220px",
+                  background: C.panel,
+                  color: C.text,
+                  border: C.border,
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  fontSize: 12,
+                }}
+              />
+              <input
+                value={newTaskDesc}
+                onChange={(e) => setNewTaskDesc(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && createTaskManual()}
+                placeholder="Description (optional)"
+                style={{
+                  flex: "3 1 260px",
+                  background: C.panel,
+                  color: C.text,
+                  border: C.border,
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  fontSize: 12,
+                }}
+              />
+              <select
+                value={newTaskAssignee}
+                onChange={(e) => setNewTaskAssignee(e.target.value)}
+                style={{
+                  background: C.panel,
+                  color: C.text,
+                  border: C.border,
+                  borderRadius: 6,
+                  padding: "6px 8px",
+                  fontSize: 12,
+                }}
+              >
+                {state.members.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({m.role})
+                  </option>
+                ))}
+              </select>
+              <button type="button" style={btn(true)} onClick={createTaskManual}>
+                Create Task
+              </button>
+              <button type="button" style={btn()} onClick={() => setNewTaskOpen(false)}>
+                Cancel
+              </button>
+              <span style={{ color: C.dim, fontSize: 11 }}>
+                Next: {nextTaskId(state.tasks)} · Ready · linked to {spec.title}
+              </span>
+            </div>
+          )}
           <div
             style={{
               display: "grid",

@@ -1,5 +1,16 @@
 # Night Log
 
+## 2026-10-27 — Iteration 16 (Product Council, CASE B): SHIPPED & VERIFIED ✅
+
+- Pre-flight green: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed on the untouched tree. All plan items were [x], so ran the Product Council with both delegates (tagy full text in `/tmp/council16-tagy.md`, Grok via `agent --model grok-4.7-high`).
+- Council candidates scored (Alignment / Visual-Demo / Self-contained, /5 each; tagy draft -> Grok critique -> final):
+  1. **Manual New Task Quick Composer (WINNER, tagy 14 -> Grok 14: 5/4/5):** the Colony Board could only receive tasks parsed from spec markdown by Extract Tasks; there was no way to add ad-hoc work. The write path already existed end to end (`colonyCreateTask` RPC, `ColonyManager.createTask`, `runCreateTask` in the web app) with Extract as its only caller. Grok: "the only candidate whose write path already exists and whose seed demo stays honest."
+  2. Reopen Shipped Task (tagy 14 -> Grok 11: 4/4/3): the approvals-reset now answers the iteration-13 hole, but reopening flips shipped MND-100 back into in-flight file totals and never dispatches a steer to the provider session, so the Myrmex would sit idle while the board claims it is coding.
+  3. Colony Command Palette / Cmd-K (tagy 13 -> Grok 10: 3/5/2): best visual, but the host already binds `mod+k` to its own command palette (`packages/shared/src/keybindings.ts`) and the Mound route lives inside that shell listener, so the palette would fight the host on every keypress.
+- Critique correction applied before building: Grok flagged that Extract Tasks hardcoded `MND-${105 + i}`, so a manually created `MND-105` would collide with the next extraction. Both paths now allocate from one `nextTaskId()` helper (max numeric suffix + 1, sequential within a batch).
+- Built (tagy logic, interrupted before the UI; composer UI finished and reviewed locally, same fallback as iterations 1/3/7): `nextTaskId()` + `createTaskManual()` and the `+ New Task` composer in the Board filter bar of [MoundApp.tsx](/home/noor/projects/mound/apps/web/src/mound/MoundApp.tsx) — title/description inputs (Enter submits, whitespace title is a no-op), assignee select, description fallback `Created by {member} ({role})`, next-ID preview, persistence via existing `save()` + `colonyCreateTask`. No contract or server change.
+- Verification: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed ("New Task" present in the built mound chunk), `vp test run apps/server/src/colonyManager.test.ts` 6/6, probe `MND-105 MND-106 noop` / `NEWTASK-OK`, oxlint 0 errors on `MoundApp.tsx`. First-load demo: open the Colony Board, click "+ New Task", type a title, click Create Task — `MND-105` appears in Ready with a Summon Myrmex button; reopen the composer and the preview reads `MND-106`. The `.t3-verify/` runtime churn from the pre-existing dev server was reverted and excluded from the commit.
+
 ## 2026-10-27 — Iteration 15 (Product Council, CASE B): SHIPPED & VERIFIED ✅
 
 - Pre-flight green: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed on the untouched tree. All plan items were [x], so ran the Product Council. tagy's full council prompt errored `interrupted` (known fallback, iterations 1/3/7/12); Grok answered in short form (long prompts return empty on this box).
