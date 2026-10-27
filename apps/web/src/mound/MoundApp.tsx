@@ -1,5 +1,11 @@
 import { useAtomValue } from "@effect/atom-react";
-import type { ColonyState, HandoffPacket, SdlcTask } from "@t3tools/contracts";
+import type {
+  ColonyMemberRole,
+  ColonyState,
+  HandoffPacket,
+  SdlcTask,
+  TeamMember,
+} from "@t3tools/contracts";
 import { AsyncResult, Atom } from "effect/reactivity";
 import { useEffect, useRef, useState } from "react";
 import { usePrimaryEnvironmentId } from "../state/environments";
@@ -109,6 +115,7 @@ const seed = (): ColonyState => {
             "Answer the open question first: Sarah: Should Retry-After be seconds or an HTTP date? Clients prefer seconds.",
           createdAt: at,
         },
+        approvals: [{ memberId: "noor", memberName: "Noor", role: "eng", approvedAt: at }],
         reviewComments: [
           {
             id: "mc-1",
@@ -157,6 +164,11 @@ const seed = (): ColonyState => {
           filesChanged: 1,
           lastAction: "Audit note merged",
         },
+        approvals: [
+          { memberId: "noor", memberName: "Noor", role: "eng", approvedAt: at },
+          { memberId: "sarah", memberName: "Sarah", role: "pm", approvedAt: at },
+          { memberId: "alex", memberName: "Alex", role: "reviewer", approvedAt: at },
+        ],
         reviewComments: [],
         updatedAt: at,
       },
@@ -271,6 +283,71 @@ function deriveSpecMatrix(
     parsed.push({ index: parsed.length + 1, text, checked, linkedTask: best, status });
   }
   return parsed;
+}
+
+type GateStatus = "approved" | "blocked" | "pending";
+interface RoleGate {
+  role: ColonyMemberRole;
+  label: string;
+  member: TeamMember | undefined;
+  status: GateStatus;
+  reason: string;
+}
+interface TaskConsensus {
+  gates: Array<RoleGate>;
+  approvedCount: number;
+  reached: boolean;
+  blocker: string | null;
+}
+
+function deriveConsensus(task: SdlcTask, members: ReadonlyArray<TeamMember>): TaskConsensus {
+  const roles: Array<{ role: ColonyMemberRole; label: string }> = [
+    { role: "eng", label: "Eng" },
+    { role: "pm", label: "PM" },
+    { role: "reviewer", label: "Reviewer" },
+  ];
+  const gates = roles.map(({ role, label }): RoleGate => {
+    const member = members.find((m) => m.role === role);
+    const approval = (task.approvals ?? []).find((a) => a.role === role);
+    if (approval) {
+      return {
+        role,
+        label,
+        member,
+        status: "approved",
+        reason: `Signed off by ${approval.memberName}`,
+      };
+    }
+    const questions = task.reviewComments.filter(
+      (c) => !c.isSteeringPrompt && c.authorRole === role,
+    );
+    if (questions.length > 0) {
+      return {
+        role,
+        label,
+        member,
+        status: "blocked",
+        reason: questions[questions.length - 1]!.content,
+      };
+    }
+    return {
+      role,
+      label,
+      member,
+      status: "pending",
+      reason: `Waiting on ${member?.name ?? label}`,
+    };
+  });
+  const approvedCount = gates.filter((g) => g.status === "approved").length;
+  const firstBlock = gates.find((g) => g.status !== "approved");
+  return {
+    gates,
+    approvedCount,
+    reached: approvedCount === roles.length,
+    blocker: firstBlock
+      ? `${firstBlock.label} (${firstBlock.member?.name ?? firstBlock.label}): ${firstBlock.reason}`
+      : null,
+  };
 }
 
 const EMPTY_NEVER_ATOM = Atom.make(() => AsyncResult.initial()).pipe(
@@ -420,6 +497,27 @@ export default function MoundApp() {
     setSteer("");
   };
 
+  const signOff = (t: SdlcTask) => {
+    const existing = (t.approvals ?? []).filter((a) => a.role !== me.role);
+    patchTask(t.id, {
+      approvals: [
+        ...existing,
+        {
+          memberId: me.id,
+          memberName: me.name,
+          role: me.role,
+          approvedAt: new Date().toISOString(),
+        },
+      ],
+    });
+  };
+
+  const withdrawSignOff = (t: SdlcTask) => {
+    patchTask(t.id, {
+      approvals: (t.approvals ?? []).filter((a) => a.memberId !== me.id),
+    });
+  };
+
   const createHandoff = (t: SdlcTask): HandoffPacket => {
     // oxlint-disable-next-line react/purity -- runs in an event handler (oxc#27309)
     const at = new Date().toISOString();
@@ -538,6 +636,8 @@ export default function MoundApp() {
         .map((t) => [t.id, t]),
     ).values(),
   );
+  const consensus = deriveConsensus(task, state.members);
+  const myApproval = (task.approvals ?? []).find((a) => a.memberId === me.id);
   const matrix = deriveSpecMatrix(spec, state.tasks);
   const verifiedCount = matrix.filter((r) => r.status === "shipped").length;
   const taskReqIndex = new Map(
@@ -1150,6 +1250,36 @@ export default function MoundApp() {
                           Handoff ready · by {t.handoff.createdByName}
                         </div>
                       ) : null}
+                      {(t.column === "review" ||
+                        t.column === "done" ||
+                        (t.approvals?.length ?? 0) > 0) &&
+                        (() => {
+                          const c = deriveConsensus(t, state.members);
+                          return (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelected(t.id);
+                                setView("cockpit");
+                              }}
+                              style={{
+                                marginTop: 6,
+                                fontSize: 10,
+                                fontWeight: 700,
+                                color: c.reached ? C.green : C.sky,
+                                background: C.panel,
+                                border: C.border,
+                                borderRadius: 4,
+                                padding: "2px 6px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Consensus {c.approvedCount}/3
+                              {c.reached ? " · ready to merge" : ""}
+                            </button>
+                          );
+                        })()}
                       {t.myrmex ? (
                         <div style={{ marginTop: 8, color: C.amber, fontSize: 11 }}>
                           ● {t.myrmex.provider} · {t.myrmex.lastAction} · +{t.myrmex.filesChanged}{" "}
@@ -1249,12 +1379,96 @@ export default function MoundApp() {
               </button>
               <button
                 type="button"
-                style={{ ...btn(true), background: C.green }}
-                onClick={() => patchTask(task.id, { column: "done" })}
+                disabled={!consensus.reached}
+                title={consensus.blocker ?? "All roles signed off"}
+                style={{
+                  ...btn(true),
+                  background: consensus.reached ? C.green : C.panel2,
+                  color: consensus.reached ? "#111" : C.dim,
+                  cursor: consensus.reached ? "pointer" : "not-allowed",
+                  opacity: consensus.reached ? 1 : 0.6,
+                }}
+                onClick={() => consensus.reached && patchTask(task.id, { column: "done" })}
               >
-                Approve &amp; Merge Worktree
+                {consensus.reached
+                  ? "Approve & Merge Worktree"
+                  : `Merge blocked (${consensus.approvedCount}/3)`}
               </button>
             </div>
+            {(task.column === "review" ||
+              task.column === "done" ||
+              (task.approvals?.length ?? 0) > 0) && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  marginTop: 10,
+                  paddingTop: 10,
+                  borderTop: C.border,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontFamily: "ui-monospace, monospace",
+                    fontWeight: 700,
+                    color: consensus.reached ? C.green : C.amber,
+                  }}
+                >
+                  Consensus Gate: {consensus.approvedCount}/3
+                </span>
+                {consensus.gates.map((g) => (
+                  <span
+                    key={g.role}
+                    title={g.reason}
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color:
+                        g.status === "approved"
+                          ? C.green
+                          : g.status === "blocked"
+                            ? C.amber
+                            : C.dim,
+                      background: C.panel2,
+                      border: C.border,
+                      borderRadius: 4,
+                      padding: "2px 6px",
+                    }}
+                  >
+                    {g.label} ({g.member?.name ?? g.label}):{" "}
+                    {g.status === "approved"
+                      ? "Approved"
+                      : g.status === "blocked"
+                        ? "Blocked"
+                        : "Pending"}
+                  </span>
+                ))}
+                {!consensus.reached && consensus.blocker ? (
+                  <span style={{ fontSize: 11, color: C.dim }}>{consensus.blocker}</span>
+                ) : null}
+                {task.column === "review" &&
+                  (myApproval ? (
+                    <button
+                      type="button"
+                      style={{ ...btn(), marginLeft: "auto" }}
+                      onClick={() => withdrawSignOff(task)}
+                    >
+                      Withdraw my sign-off
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      style={{ ...btn(true), marginLeft: "auto" }}
+                      onClick={() => signOff(task)}
+                    >
+                      Sign off as {me.name} ({me.role})
+                    </button>
+                  ))}
+              </div>
+            )}
           </div>
           <h3 style={{ fontSize: 13 }}>{task.title}</h3>
           <div

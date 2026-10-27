@@ -61,3 +61,11 @@
 - tagy build calls interrupted twice with zero edits; built directly (same fallback as iterations 1/3). `MoundApp.tsx`: `deriveSpecMatrix()` (checkbox parse, distinct task link by word-overlap then ordinal, shipped/review/active/ready/unlinked), Acceptance Matrix panel in Specs view (counter, segmented bar, telemetry pills, Jump/Summon, Sync checkboxes via save + colonySaveSpec), Req N pill on Board cards -> Specs view. One typecheck fix: `ReadonlyArray<SdlcTask>` param.
 - Verification: typecheck 35/35, web build passed, ColonyManager smoke `Gateway Foundations Colony 5 5 reqs`, seed mapping probe Req1->MND-101 active, Req2->MND-102 review, Req3->MND-103 ready, Req4->MND-104 ready, Req5->MND-100 shipped (1 of 5 verified).
 - Next: Consensus Gate is runner-up; Conflict Radar still waits on real per-branch file lists.
+
+## 2026-10-27 — Overnight iteration 8 (Product Council: Consensus Gate)
+
+- Pre-flight green: typecheck 35/35, web build passed. All plan items [x] -> CASE B council via tagy (`/tmp/council8-tagy.md`) + Grok (`agent --model grok-4.7-high`).
+- Council winner: Multi-Role Consensus Gate (14, tiebreak over Pairing Rail 14 on operational leverage) over Standup Digest (13); scoring + critique in `NIGHT_LOG.md`. tagy's inferred-approval draft was rejected: shipped version uses explicit `TaskApproval` records only (Approved = record exists, Blocked = that role's open non-steering question, Pending otherwise).
+- Contracts: `TaskApproval` + optional `SdlcTask.approvals`. Seeds (server `seedDemoColony()` + web `seed()`): MND-102 Eng-only (1/3, PM blocked, Reviewer pending), MND-100 all three (3/3). Web: `deriveConsensus()`, Cockpit gate strip + Sign off / Withdraw for current role in review, merge button disabled until 3/3, Board `Consensus X/3` pill. Persists via existing `colony.updateTask`; no new RPC. tagy landed contract+server seed then interrupted; web built directly.
+- Verification: typecheck 35/35, web build passed, colonyManager.test.ts 5/5, smoke `MND-102 approvals eng MND-100 approvals 3`, oxlint 0 on touched files, `vp fmt` applied.
+- Next: Pairing Rail is runner-up; Conflict Radar still waits on real per-branch file lists. A pre-existing dev server on `.t3-verify` (ports 5733/13773) was left running untouched; its `.t3-verify/` runtime writes were excluded from the commit.

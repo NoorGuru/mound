@@ -97,6 +97,14 @@ export const HandoffPacket = Schema.Struct({
 });
 export type HandoffPacket = typeof HandoffPacket.Type;
 
+export const TaskApproval = Schema.Struct({
+  memberId: TrimmedNonEmptyString,
+  memberName: TrimmedNonEmptyString,
+  role: ColonyMemberRole,
+  approvedAt: Schema.String,
+});
+export type TaskApproval = typeof TaskApproval.Type;
+
 export const SdlcTask = Schema.Struct({
   id: TrimmedNonEmptyString,
   specId: Schema.optional(TrimmedNonEmptyString),
@@ -107,6 +115,7 @@ export const SdlcTask = Schema.Struct({
   myrmex: Schema.optional(MyrmexSession),
   handoff: Schema.optional(HandoffPacket),
   reviewComments: Schema.Array(MidWorkComment),
+  approvals: Schema.optional(Schema.Array(TaskApproval)),
   updatedAt: Schema.String,
 });
 export type SdlcTask = typeof SdlcTask.Type;

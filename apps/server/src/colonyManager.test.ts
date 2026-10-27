@@ -61,6 +61,23 @@ describe("ColonyManager provider binding", () => {
     assert.strictEqual(colony.createHandoff("MND-999", actor), next);
   });
 
+  it("seeds explicit consensus approvals without inferring them", () => {
+    const colony = new ColonyManager();
+    const state = colony.getState();
+    const review = state.tasks.find((entry) => entry.id === "MND-102");
+    assert.deepStrictEqual(
+      review?.approvals?.map((a) => a.role),
+      ["eng"],
+    );
+    const shipped = state.tasks.find((entry) => entry.id === "MND-100");
+    assert.deepStrictEqual(
+      shipped?.approvals?.map((a) => a.role),
+      ["eng", "pm", "reviewer"],
+    );
+    const ready = state.tasks.find((entry) => entry.id === "MND-103");
+    assert.strictEqual(ready?.approvals, undefined);
+  });
+
   it("ignores provider events for unbound threads", () => {
     const colony = new ColonyManager();
     const before = colony.getState();

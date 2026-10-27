@@ -154,6 +154,14 @@ export function seedDemoColony(): ColonyState {
             "Answer the open question first: Sarah: Should Retry-After be seconds or an HTTP date? Clients prefer seconds.",
           createdAt: at,
         },
+        approvals: [
+          {
+            memberId: "noor",
+            memberName: "Noor",
+            role: "eng",
+            approvedAt: at,
+          },
+        ],
         reviewComments: [
           {
             id: "mc-1",
@@ -202,6 +210,26 @@ export function seedDemoColony(): ColonyState {
           filesChanged: 1,
           lastAction: "Audit note merged",
         },
+        approvals: [
+          {
+            memberId: "noor",
+            memberName: "Noor",
+            role: "eng",
+            approvedAt: at,
+          },
+          {
+            memberId: "sarah",
+            memberName: "Sarah",
+            role: "pm",
+            approvedAt: at,
+          },
+          {
+            memberId: "alex",
+            memberName: "Alex",
+            role: "reviewer",
+            approvedAt: at,
+          },
+        ],
         reviewComments: [],
         updatedAt: at,
       },

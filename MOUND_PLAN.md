@@ -148,3 +148,7 @@ We are extending T3 Code's existing 4-part architecture without breaking its cor
 ### PHASE 10: Product Council Winner — Spec Acceptance Matrix (2026-10-27 iteration 7)
 
 - [x] **10.1 Acceptance Matrix:** Specs view parses `- [ ]` requirements, links each to a distinct task (word-overlap, ordinal fallback), shows verified counter + segmented progress bar, per-requirement telemetry/status pill, Jump to Cockpit / Summon Myrmex actions, Sync checkboxes (shipped -> `- [x]` via save + `colony.saveSpec`), and Req N pills on Board cards. Pure client derivation, no new contract. Seeded visible: Req1 MND-101 active, Req2 MND-102 review, Req3/4 ready, Req5 MND-100 shipped (1 of 5 verified). Council scoring in `NIGHT_LOG.md`.
+
+### PHASE 11: Product Council Winner — Consensus Gate (2026-10-27 iteration 8)
+
+- [x] **11.1 Consensus Gate:** Durable per-role sign-offs (`TaskApproval` on `SdlcTask`, explicit records only, never inferred from column or comment keywords) gate `Approve & Merge Worktree` in the Cockpit: Eng/PM/Reviewer chips (Approved / Blocked by that role's open question / Pending), `Sign off as {member}` + `Withdraw my sign-off` for the current role in review, merge disabled at `Merge blocked (X/3)` until 3/3, `Consensus X/3` pill on Board cards. Sign-offs persist via existing `colony.updateTask` (whole-task patch). Seeded visible: MND-102 at 1/3 (Eng signed, PM blocked on the Retry-After question, Reviewer pending), MND-100 at 3/3. Council scoring in `NIGHT_LOG.md`.
