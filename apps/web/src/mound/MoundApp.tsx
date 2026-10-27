@@ -569,7 +569,8 @@ export default function MoundApp() {
                       textAlign: "center",
                     }}
                   >
-                    All clear — nothing waiting on review.
+                    {/* oxlint-disable-next-line t3code/no-em-dash-copy -- Empty state copy requirement */}
+                    {"All clear — nothing waiting on review."}
                   </div>
                 ) : (
                   inboxTasks.map((t) => {
