@@ -46,3 +46,10 @@
 - Web (tagy, reviewed): Cockpit Handoff Packet panel (Create/Refresh, Copy Packet plain text), Board badge, local seed + offline packet builder mirroring server logic.
 - Verification: typecheck 35/35, web build green, colonyManager.test.ts 4/4. MoundApp lint = pre-existing baseline only.
 - Next: Conflict Radar becomes viable once real per-branch file lists land; a live provider run still needs a project in the dev DB.
+
+## 2026-10-27 — Overnight iteration 6 (Product Council: Review Inbox)
+
+- CASE B again: all plan items [x]. Council winner: Review Inbox (14) over Swarm Mode (12), Conflict Radar (11), PM Diff Summary (10); scoring in NIGHT_LOG.md.
+- Built (tagy, reviewed): header Review Inbox button + amber count badge + dropdown in `MoundApp.tsx`, queue derived client-side from tasks (review column / unanswered non-steering comment / paused Myrmex), reason chips, latest open question, click selects task + opens Cockpit. No new contract/RPC needed.
+- Verification: typecheck 35/35, web build green, ColonyManager smoke printed inbox MND-102 (visible on first load).
+- Next: Conflict Radar still waits on real per-branch file lists; Swarm Mode is the runner-up candidate.

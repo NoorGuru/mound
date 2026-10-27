@@ -234,6 +234,7 @@ export default function MoundApp() {
   const [steer, setSteer] = useState("");
   const [filter, setFilter] = useState("all");
   const [copiedPacket, setCopiedPacket] = useState(false);
+  const [inboxOpen, setInboxOpen] = useState(false);
   const me = state.members.find((m) => m.id === roleId) ?? state.members[0]!;
   const spec = state.specs[0]!;
   const task = state.tasks.find((t) => t.id === selected) ?? state.tasks[0]!;
@@ -459,6 +460,18 @@ export default function MoundApp() {
           ? !!t.myrmex
           : t.column === "review",
   );
+  const inboxTasks = Array.from(
+    new Map(
+      state.tasks
+        .filter(
+          (t) =>
+            t.column === "review" ||
+            t.reviewComments.some((c) => c.isSteeringPrompt === false) ||
+            t.myrmex?.status === "paused",
+        )
+        .map((t) => [t.id, t]),
+    ).values(),
+  );
 
   return (
     <div
@@ -502,6 +515,181 @@ export default function MoundApp() {
           ))}
         </nav>
         <span style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => setInboxOpen((prev) => !prev)}
+              style={{
+                ...btn(),
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                borderColor: inboxOpen ? C.amber : undefined,
+              }}
+            >
+              <span>Review Inbox</span>
+              {inboxTasks.length > 0 && (
+                <span
+                  style={{
+                    padding: "1px 6px",
+                    borderRadius: 999,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    background: C.amber,
+                    color: "#111",
+                  }}
+                >
+                  {inboxTasks.length}
+                </span>
+              )}
+            </button>
+            {inboxOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 6px)",
+                  right: 0,
+                  width: 380,
+                  maxWidth: "90vw",
+                  background: C.panel,
+                  border: C.border,
+                  borderRadius: 8,
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.6)",
+                  zIndex: 100,
+                  maxHeight: 440,
+                  overflowY: "auto",
+                }}
+              >
+                {inboxTasks.length === 0 ? (
+                  <div
+                    style={{
+                      padding: "16px 14px",
+                      color: C.dim,
+                      fontSize: 12,
+                      textAlign: "center",
+                    }}
+                  >
+                    All clear — nothing waiting on review.
+                  </div>
+                ) : (
+                  inboxTasks.map((t) => {
+                    const assignee = state.members.find((m) => m.id === t.assigneeId);
+                    const assigneeName = assignee ? assignee.name : t.assigneeId;
+                    const reasons: Array<{ label: string; color: string }> = [];
+                    if (t.column === "review") {
+                      reasons.push({ label: "In review", color: C.sky });
+                    }
+                    if (t.reviewComments.some((c) => c.isSteeringPrompt === false)) {
+                      reasons.push({ label: "Open question", color: C.amber });
+                    }
+                    if (t.myrmex?.status === "paused") {
+                      reasons.push({ label: "Paused", color: C.amber });
+                    }
+                    const openQuestions = t.reviewComments.filter(
+                      (c) => c.isSteeringPrompt === false,
+                    );
+                    const latestOpenQuestion =
+                      openQuestions.length > 0 ? openQuestions[openQuestions.length - 1] : null;
+
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={() => {
+                          setSelected(t.id);
+                          setView("cockpit");
+                          setInboxOpen(false);
+                        }}
+                        style={{
+                          padding: "10px 12px",
+                          borderBottom: C.border,
+                          cursor: "pointer",
+                          background: C.panel,
+                          transition: "background 0.15s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = C.panel2;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = C.panel;
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginBottom: 4,
+                          }}
+                        >
+                          <span
+                            style={{
+                              color: C.dim,
+                              fontSize: 11,
+                              fontFamily: "ui-monospace, monospace",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {t.id}
+                          </span>
+                          <span style={{ color: C.dim, fontSize: 11 }}>{assigneeName}</span>
+                        </div>
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            fontSize: 12,
+                            color: C.text,
+                            marginBottom: 6,
+                          }}
+                        >
+                          {t.title}
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 6,
+                            flexWrap: "wrap",
+                            marginBottom: latestOpenQuestion ? 6 : 0,
+                          }}
+                        >
+                          {reasons.map((r) => (
+                            <span
+                              key={r.label}
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                color: r.color,
+                                background: C.panel2,
+                                border: C.border,
+                                borderRadius: 4,
+                                padding: "2px 6px",
+                              }}
+                            >
+                              {r.label}
+                            </span>
+                          ))}
+                        </div>
+                        {latestOpenQuestion && (
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: C.dim,
+                              background: C.panel2,
+                              border: C.border,
+                              borderRadius: 4,
+                              padding: "6px 8px",
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            {latestOpenQuestion.content}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
           {state.members.map((m) => (
             <span
               key={m.id}

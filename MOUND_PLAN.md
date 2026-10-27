@@ -140,3 +140,7 @@ We are extending T3 Code's existing 4-part architecture without breaking its cor
 ### PHASE 8: Product Council Winner — Handoff Packet (2026-10-27 iteration 5)
 
 - [x] **8.1 Handoff Packet:** 1-click packet (summary, branch, provider status, files changed, last action, open questions, suggested next step) generated from colony state via `colony.createHandoff`, shown in the Cockpit with Copy Packet, badge on Board cards, seeded ready on MND-102. Council scoring logged in `NIGHT_LOG.md`.
+
+### PHASE 9: Product Council Winner — Review Inbox (2026-10-27 iteration 6)
+
+- [x] **9.1 Review Inbox:** Header "Review Inbox" button with amber count badge and dropdown queue derived from colony state (task in `review`, unanswered non-steering comment, or paused Myrmex), reason chips + latest open question per row, click jumps to the task in the Live Cockpit. Pure client derivation over existing state/RPCs (no new contract), seeded visible on MND-102. Council scoring logged in `NIGHT_LOG.md`.
