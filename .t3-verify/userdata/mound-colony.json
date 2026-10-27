@@ -1,0 +1,175 @@
+{
+  "colonyName": "Gateway Foundations Colony",
+  "members": [
+    {
+      "id": "noor",
+      "name": "Noor",
+      "role": "eng",
+      "avatarColor": "#E57C23",
+      "status": "online"
+    },
+    {
+      "id": "sarah",
+      "name": "Sarah",
+      "role": "pm",
+      "avatarColor": "#38BDF8",
+      "status": "online"
+    },
+    {
+      "id": "alex",
+      "name": "Alex",
+      "role": "reviewer",
+      "avatarColor": "#10B981",
+      "status": "reviewing"
+    }
+  ],
+  "specs": [
+    {
+      "id": "spec-gateway",
+      "title": "Edge Gateway Rate-Limiting & Token Bucket Migration",
+      "content": "# Edge Gateway Rate-Limiting & Token Bucket Migration\n\n## Problem\nFixed-window counters let bursts through at window boundaries and give clients no retry guidance.\n\n## Requirements\n- [ ] Replace fixed-window counter with a token bucket per API key\n- [ ] Return HTTP 429 with a Retry-After header when the bucket is empty\n- [ ] Add per-route limits (auth routes stricter than read routes)\n- [ ] Emit metrics for allowed / throttled requests\n- [x] Cover refill and burst edge cases\n\n## Acceptance\nLoad test at 2x peak shows no 5xx increase; throttled clients receive Retry-After.",
+      "authorId": "sarah",
+      "status": "approved",
+      "comments": [
+        {
+          "id": "sc-1",
+          "authorId": "sarah",
+          "authorName": "Sarah",
+          "authorRole": "pm",
+          "content": "Priority is the 429 + Retry-After behaviour: clients are blocked on it.",
+          "createdAt": "2026-10-27T01:48:28.492Z"
+        },
+        {
+          "id": "sc-2",
+          "authorId": "noor",
+          "authorName": "Noor",
+          "authorRole": "eng",
+          "content": "Agreed. Token bucket in middleware first, Redis backing behind a flag.",
+          "createdAt": "2026-10-27T01:48:28.492Z"
+        }
+      ],
+      "updatedAt": "2026-10-27T01:48:34.604Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "MND-101",
+      "specId": "spec-gateway",
+      "title": "Token bucket middleware",
+      "description": "Replace fixed-window counter with per-key token bucket in gateway middleware.",
+      "column": "active",
+      "assigneeId": "noor",
+      "myrmex": {
+        "provider": "Claude Code",
+        "model": "Sonnet",
+        "sessionId": "demo-session-101",
+        "branchName": "feat/token-bucket-middleware",
+        "status": "coding",
+        "filesChanged": 4,
+        "lastAction": "Editing src/gateway/limiter.ts…"
+      },
+      "reviewComments": [],
+      "updatedAt": "2026-10-27T01:48:28.492Z"
+    },
+    {
+      "id": "MND-102",
+      "specId": "spec-gateway",
+      "title": "429 + Retry-After responses",
+      "description": "Return HTTP 429 with Retry-After when the bucket is empty.",
+      "column": "review",
+      "assigneeId": "noor",
+      "myrmex": {
+        "provider": "Codex",
+        "branchName": "feat/429-retry-after",
+        "status": "waiting_review",
+        "filesChanged": 2,
+        "lastAction": "Waiting for mid-work review"
+      },
+      "handoff": {
+        "id": "handoff-seed-102",
+        "taskId": "MND-102",
+        "createdById": "noor",
+        "createdByName": "Noor",
+        "summary": "MND-102 429 + Retry-After responses: Return HTTP 429 with Retry-After when the bucket is empty.",
+        "branchName": "feat/429-retry-after",
+        "providerStatus": "Codex · waiting_review",
+        "filesChanged": 2,
+        "lastAction": "Waiting for mid-work review",
+        "openQuestions": [
+          "Sarah: Should Retry-After be seconds or an HTTP date? Clients prefer seconds."
+        ],
+        "suggestedNextStep": "Answer the open question first: Sarah: Should Retry-After be seconds or an HTTP date? Clients prefer seconds.",
+        "createdAt": "2026-10-27T01:48:28.492Z"
+      },
+      "reviewComments": [
+        {
+          "id": "mc-1",
+          "taskId": "MND-102",
+          "authorId": "sarah",
+          "authorName": "Sarah",
+          "authorRole": "pm",
+          "content": "Should Retry-After be seconds or an HTTP date? Clients prefer seconds.",
+          "isSteeringPrompt": false,
+          "createdAt": "2026-10-27T01:48:28.492Z"
+        }
+      ],
+      "updatedAt": "2026-10-27T01:48:28.492Z"
+    },
+    {
+      "id": "MND-103",
+      "specId": "spec-gateway",
+      "title": "Per-route limit config",
+      "description": "Stricter limits for auth routes, generous limits for reads, config-driven.",
+      "column": "active",
+      "assigneeId": "alex",
+      "reviewComments": [],
+      "updatedAt": "2026-10-27T01:48:33.174Z",
+      "myrmex": {
+        "provider": "Claude Code",
+        "sessionId": "session-mvq112xi-0jy61",
+        "branchName": "feat/per-route-limit-config",
+        "status": "coding",
+        "filesChanged": 0,
+        "lastAction": "Summoned by Noor: planning first change…"
+      }
+    },
+    {
+      "id": "MND-104",
+      "specId": "spec-gateway",
+      "title": "Throttling metrics & dashboard",
+      "description": "Emit allowed/throttled counters and add a gateway dashboard panel.",
+      "column": "todo",
+      "assigneeId": "noor",
+      "reviewComments": [],
+      "updatedAt": "2026-10-27T01:48:28.492Z"
+    },
+    {
+      "id": "MND-100",
+      "specId": "spec-gateway",
+      "title": "Audit current fixed-window limiter",
+      "description": "Document current behaviour and burst failure mode before migration.",
+      "column": "done",
+      "assigneeId": "alex",
+      "myrmex": {
+        "provider": "Claude Code",
+        "branchName": "chore/audit-limiter",
+        "status": "completed",
+        "filesChanged": 1,
+        "lastAction": "Audit note merged"
+      },
+      "reviewComments": [],
+      "updatedAt": "2026-10-27T01:48:28.492Z"
+    }
+  ],
+  "activity": [
+    {
+      "id": "ev-1",
+      "kind": "demo_seeded",
+      "actorId": "sarah",
+      "actorName": "Sarah",
+      "message": "Demo colony seeded: Gateway Foundations",
+      "createdAt": "2026-10-27T01:48:28.492Z"
+    }
+  ],
+  "updatedAt": "2026-10-27T01:48:34.604Z"
+}
