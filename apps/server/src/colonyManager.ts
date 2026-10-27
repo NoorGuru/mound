@@ -5,6 +5,7 @@ import * as NodePath from "node:path";
 import type {
   ColonyState,
   MidWorkComment,
+  MyrmexSession,
   ProductSpec,
   SdlcTask,
   TeamMember,
@@ -54,7 +55,7 @@ export function seedDemoColony(): ColonyState {
             authorId: "sarah",
             authorName: "Sarah",
             authorRole: "pm",
-            content: "Priority is the 429 + Retry-After behaviour — clients are blocked on it.",
+            content: "Priority is the 429 + Retry-After behaviour: clients are blocked on it.",
             createdAt: at,
           },
           {
@@ -161,7 +162,7 @@ export function seedDemoColony(): ColonyState {
         kind: "demo_seeded",
         actorId: "sarah",
         actorName: "Sarah",
-        message: "Demo colony seeded — Gateway Foundations",
+        message: "Demo colony seeded: Gateway Foundations",
         createdAt: at,
       },
     ],
@@ -250,11 +251,70 @@ export class ColonyManager {
     return this.state;
   }
 
-  bindThread(taskId: string, threadId: string): ColonyState {
+  bindThread(taskId: string, threadId: string, projectId?: string): ColonyState {
     const task = this.state.tasks.find((entry) => entry.id === taskId);
     if (!task?.myrmex) return this.state;
     return this.updateTask(taskId, {
-      myrmex: { ...task.myrmex, threadId, sessionId: threadId },
+      myrmex: {
+        ...task.myrmex,
+        threadId,
+        sessionId: threadId,
+        ...(projectId === undefined ? {} : { projectId }),
+      },
+    });
+  }
+
+  updateMyrmex(taskId: string, patch: Partial<MyrmexSession>): ColonyState {
+    const task = this.state.tasks.find((entry) => entry.id === taskId);
+    if (!task?.myrmex || patch === undefined) return this.state;
+    return this.updateTask(taskId, { myrmex: { ...task.myrmex, ...patch } });
+  }
+
+  /** Maps a live provider/orchestration event for a bound thread onto task telemetry. */
+  applyProviderEvent(
+    threadId: string,
+    event:
+      | { readonly kind: "run"; readonly status: string }
+      | { readonly kind: "checkpoint"; readonly filesChanged: number },
+  ): ColonyState {
+    const task = this.state.tasks.find((entry) => entry.myrmex?.threadId === threadId);
+    if (!task?.myrmex) return this.state;
+    if (event.kind === "checkpoint") {
+      if (event.filesChanged === task.myrmex.filesChanged) return this.state;
+      return this.updateTask(task.id, {
+        myrmex: {
+          ...task.myrmex,
+          filesChanged: event.filesChanged,
+          lastAction: `Checkpoint captured: ${event.filesChanged} files changed`,
+        },
+      });
+    }
+    const status =
+      event.status === "preparing" || event.status === "queued" || event.status === "starting"
+        ? ("planning" as const)
+        : event.status === "running" || event.status === "waiting"
+          ? ("coding" as const)
+          : event.status === "completed"
+            ? ("waiting_review" as const)
+            : event.status === "failed" ||
+                event.status === "cancelled" ||
+                event.status === "interrupted" ||
+                event.status === "rolled_back"
+              ? ("paused" as const)
+              : null;
+    if (status === null) return this.state;
+    const lastAction =
+      status === "waiting_review"
+        ? "Run complete: waiting for mid-work review"
+        : status === "paused"
+          ? `Run ${event.status}: paused`
+          : status === "planning"
+            ? "Preparing worktree…"
+            : "Working: live from provider thread";
+    if (task.myrmex.status === status && task.myrmex.lastAction === lastAction) return this.state;
+    return this.updateTask(task.id, {
+      ...(status === "waiting_review" ? { column: "review" as const } : {}),
+      myrmex: { ...task.myrmex, status, lastAction },
     });
   }
 
@@ -275,7 +335,7 @@ export class ColonyManager {
         branchName: `feat/${slug}`,
         status: "coding",
         filesChanged: 0,
-        lastAction: `Summoned by ${actor.name} — planning first change…`,
+        lastAction: `Summoned by ${actor.name}: planning first change…`,
       },
     });
   }

@@ -41,7 +41,8 @@ import {
   type OrchestrationV2Command,
   type GitActionProgressEvent,
   type GitManagerServiceError,
-  type MessageId,
+  MessageId,
+  type ModelSelection,
   type AcpRegistryImportSessionInput,
   type AcpRegistryDeleteSessionInput,
   type AcpRegistryDisableProviderInput,
@@ -96,6 +97,8 @@ import {
   ThreadId,
   type TerminalMetadataStreamEvent,
   type ColonyState,
+  type ColonySteerSessionInput,
+  type ColonySummonMyrmexInput,
   type PullRequestRef,
   WS_METHODS,
   WsRpcGroup,
@@ -1342,6 +1345,170 @@ export const layerWsRpc = (
       const serverSelfUpdate = yield* ServerSelfUpdate.ServerSelfUpdate;
       const config = yield* ServerConfig.ServerConfig;
       const colony = new ColonyManager(config.stateDir);
+      // Live provider sync: map orchestration events for colony-bound threads onto task telemetry.
+      yield* orchestrationEngine.streamDomainEvents.pipe(
+        Stream.runForEach((event) =>
+          Effect.sync(() => {
+            if (event.type === "run.updated") {
+              colony.applyProviderEvent(event.payload.threadId, {
+                kind: "run",
+                status: event.payload.status,
+              });
+            } else if (event.type === "checkpoint.captured") {
+              colony.applyProviderEvent(event.payload.threadId, {
+                kind: "checkpoint",
+                filesChanged: event.payload.files.length,
+              });
+            }
+          }),
+        ),
+        Effect.forkScoped,
+      );
+      const colonyProviderFor = (requested: string, providers: ReadonlyArray<ServerProvider>) => {
+        const usable = providers.filter(
+          (provider) => provider.enabled && provider.installed && provider.models.length > 0,
+        );
+        const wanted = requested.toLowerCase();
+        const driver = wanted.includes("claude")
+          ? "claudeAgent"
+          : wanted.includes("codex")
+            ? "codex"
+            : wanted.includes("antigravity")
+              ? "antigravity"
+              : wanted.includes("opencode")
+                ? "opencode"
+                : wanted.includes("cursor")
+                  ? "cursor"
+                  : wanted.includes("grok")
+                    ? "grok"
+                    : null;
+        return (
+          usable.find(
+            (provider) =>
+              provider.driver === driver ||
+              (provider.displayName ?? "").toLowerCase().includes(wanted),
+          ) ?? usable[0]
+        );
+      };
+      const launchColonyThread = Effect.fn("ws.colony.launchThread")(function* (
+        taskId: string,
+        providerName: string,
+      ) {
+        const task = colony.getState().tasks.find((entry) => entry.id === taskId);
+        if (!task?.myrmex) return false;
+        const projects = yield* projectStore.list().pipe(Effect.orElseSucceed(() => []));
+        const project = projects[0];
+        if (!project) return false;
+        const providers = yield* providerRegistry.getProviders.pipe(
+          Effect.orElseSucceed(() => [] as ReadonlyArray<ServerProvider>),
+        );
+        const provider = colonyProviderFor(providerName, providers);
+        const model = provider?.models.find((entry) => entry.isDefault) ?? provider?.models[0];
+        const modelSelection =
+          project.defaultModelSelection ??
+          (provider && model ? { instanceId: provider.instanceId, model: model.slug } : null);
+        if (!modelSelection) return false;
+        const spec = colony.getState().specs.find((entry) => entry.id === task.specId);
+        const commandId = yield* serverCommandId(`colony-summon-${taskId}`);
+        const slug = task.title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
+        const result = yield* startup.enqueueCommand(
+          ThreadMessageIntake.launchThread({
+            commandId,
+            projectId: project.projectId,
+            title: `${task.id} ${task.title}`,
+            modelSelection: modelSelection as ModelSelection,
+            runtimeMode: "full-access",
+            interactionMode: "default",
+            workspaceStrategy: {
+              type: "worktree",
+              baseRef: "HEAD",
+              branch: task.myrmex.branchName ?? `feat/${slug}`,
+            },
+            initialMessage: {
+              messageId: MessageId.make(`colony:${taskId}:${commandId}`),
+              text: [
+                `You are a Myrmex coding agent summoned by the Mound colony for task ${task.id}.`,
+                `Task: ${task.title}`,
+                task.description,
+                spec ? `Spec: ${spec.title}\n${spec.content}` : "",
+                "Work in this isolated worktree. Pause for mid-work review when the task is ready to review.",
+              ]
+                .filter((line) => line.length > 0)
+                .join("\n\n"),
+              attachments: [],
+            },
+            createdBy: "user",
+            creationSource: "web",
+          }).pipe(Effect.provide(intakeContext)),
+        );
+        colony.bindThread(taskId, result.threadId, project.projectId);
+        colony.updateMyrmex(taskId, {
+          model: modelSelection.model,
+          status: "coding",
+          lastAction: "Live provider thread launched: working...",
+        });
+        return true;
+      });
+      const steerColonyThread = Effect.fn("ws.colony.steerThread")(function* (
+        taskId: string,
+        comment: {
+          authorName: string;
+          authorRole: string;
+          content: string;
+          isSteeringPrompt: boolean;
+        },
+      ) {
+        const task = colony.getState().tasks.find((entry) => entry.id === taskId);
+        const threadId = task?.myrmex?.threadId;
+        const projectId = task?.myrmex?.projectId;
+        if (!task?.myrmex || !threadId || !projectId) return false;
+        const text = `[Mid-Work Steer from ${comment.authorName} (${comment.authorRole})]: ${comment.content}`;
+        if (comment.isSteeringPrompt) {
+          const interruptId = yield* serverCommandId(`colony-interrupt-${taskId}`);
+          yield* threadManagement
+            .interruptThread({
+              projectId: projectId as ProjectId,
+              commandId: interruptId,
+              threadId: ThreadId.make(threadId),
+            })
+            .pipe(Effect.ignore);
+        }
+        const commandId = yield* serverCommandId(`colony-steer-${taskId}`);
+        yield* threadManagement.sendToThread({
+          projectId: projectId as ProjectId,
+          commandId,
+          threadId: ThreadId.make(threadId),
+          messageId: MessageId.make(`colony-steer:${taskId}:${commandId}`),
+          text,
+          attachments: [],
+          mode: comment.isSteeringPrompt ? "steer" : "queue",
+          createdBy: "user",
+          creationSource: "web",
+        });
+        colony.updateMyrmex(taskId, { lastAction: "Steer delivered to live provider thread" });
+        return true;
+      });
+      const colonySummon = Effect.fn("ws.colony.summon")(function* (
+        input: ColonySummonMyrmexInput,
+      ) {
+        colony.summonMyrmex(input.taskId, input.provider, input.actor);
+        // Best-effort live launch: with no project or usable provider the
+        // colony board binding above stays authoritative for the demo.
+        yield* launchColonyThread(input.taskId, input.provider).pipe(
+          Effect.orElseSucceed(() => false),
+        );
+        return colony.getState();
+      });
+      const colonySteer = Effect.fn("ws.colony.steer")(function* (input: ColonySteerSessionInput) {
+        colony.steerSession(input.taskId, input.comment);
+        yield* steerColonyThread(input.taskId, input.comment).pipe(
+          Effect.orElseSucceed(() => false),
+        );
+        return colony.getState();
+      });
       const lifecycleEvents = yield* ServerLifecycleEvents.ServerLifecycleEvents;
       const storageCleanup = yield* StorageCleanup.StorageCleanup;
       const databaseStorage = yield* DatabaseStorage.DatabaseStorage;
@@ -2222,10 +2389,8 @@ export const layerWsRpc = (
         [WS_METHODS.colonyCreateTask]: (input) => Effect.sync(() => colony.createTask(input.task)),
         [WS_METHODS.colonyUpdateTask]: (input) =>
           Effect.sync(() => colony.updateTask(input.task.id, input.task)),
-        [WS_METHODS.colonySummonMyrmex]: (input) =>
-          Effect.sync(() => colony.summonMyrmex(input.taskId, input.provider, input.actor)),
-        [WS_METHODS.colonySteerSession]: (input) =>
-          Effect.sync(() => colony.steerSession(input.taskId, input.comment)),
+        [WS_METHODS.colonySummonMyrmex]: colonySummon,
+        [WS_METHODS.colonySteerSession]: colonySteer,
         [WS_METHODS.colonyAddComment]: (input) =>
           Effect.sync(() => colony.addComment(input.taskId, input.comment)),
         [WS_METHODS.colonySeedDemo]: (_input) => Effect.sync(() => colony.seedDemo()),

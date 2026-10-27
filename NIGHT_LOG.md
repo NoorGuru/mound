@@ -21,3 +21,9 @@
 - 6.1 Cockpit 3-pane (Conversation / Live Diff / Terminal) shipped; 7.1 sync proven via two-listener ColonyManager broadcast (SYNC-OK).
 - 2.3 honest gap remains: live ProviderManager launch needs a project-bound thread (ThreadMessageIntake.launchThread + scratch/project selection); threadId binding record added (contracts + bindThread), checkbox stays open.
 - Verification: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed.
+
+## 2026-10-27 — Iteration 4: SHIPPED & VERIFIED ✅
+
+- 2.3 closed: colony summon launches a real orchestration thread in an isolated worktree when a project/provider is available; steer interrupts + sends to the live thread; provider run/checkpoint events sync onto Colony Board telemetry live. Graceful demo fallback preserved.
+- Verification: `bun run typecheck` 35/35, `bun --filter @t3tools/web build` passed, colonyManager.test.ts 3/3, check:changed tests 69 passed, lint clean on touched files. Knip second pass OOM in this sandbox (environment, not code).
+- All MOUND_PLAN items now [x]. Next iteration: Product Council (CASE B) or a live provider run once a project exists in the dev DB.

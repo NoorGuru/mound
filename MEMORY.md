@@ -29,3 +29,12 @@
 - 6.1 [x] scoped: Cockpit is now 3-pane (Conversation / Live Diff / Terminal-Telemetry) with SteeringBar intact. tagy attempt was interrupted; built directly.
 - 7.1 [x]: ColonyManager two-listener broadcast script printed SYNC-OK (summon->active, bindThread, steer comment). Two-browser visual check not run.
 - Verification: typecheck 35/35, web build passed, sync script SYNC-OK.
+
+## 2026-10-27 — Overnight iteration 4 (2.3 live provider binding)
+
+- Pre-flight green: typecheck 35/35, web build passed.
+- 2.3 DONE [x]: ws.ts colony summon now launches a real thread via ThreadMessageIntake.launchThread (first project, project defaultModelSelection or matched enabled/installed provider's default model, worktree strategy on the colony branch, task+spec as initial prompt), then ColonyManager.bindThread(taskId, threadId, projectId). Steer: steering prompts interrupt the live run then sendToThread mode "steer" with `[Mid-Work Steer from ...]` prefix; plain comments queue. All provider calls are best-effort (orElseSucceed) so the demo board binding stays authoritative with no project/provider.
+- Provider-event sync: ws layer forks orchestrationEngine.streamDomainEvents; ColonyManager.applyProviderEvent maps run.updated (preparing->planning, running->coding, completed->waiting_review + column review, failed/cancelled/interrupted->paused) and checkpoint.captured (filesChanged) onto bound tasks only.
+- Contracts: MyrmexSession.projectId added. ColonyManager: bindThread(projectId), updateMyrmex, applyProviderEvent.
+- Test: apps/server/src/colonyManager.test.ts (3 tests, bind/apply/ignore-unknown) passes; check:changed tests 69 passed, typecheck 35/35, web build green, lint 0 errors on touched files after em-dash copy fixes. Knip pass 2 OOMs in this environment (worker heap), not a code finding.
+- Honest scope: live launch only fires when the server has at least one project and an enabled+installed provider with models; otherwise summon remains the local demo binding. No live provider run was executed overnight (no project seeded in this workspace DB).

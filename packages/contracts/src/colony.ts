@@ -59,6 +59,7 @@ export const MyrmexSession = Schema.Struct({
   model: Schema.optional(TrimmedNonEmptyString),
   sessionId: Schema.optional(TrimmedNonEmptyString),
   threadId: Schema.optional(TrimmedNonEmptyString),
+  projectId: Schema.optional(TrimmedNonEmptyString),
   branchName: Schema.optional(TrimmedNonEmptyString),
   status: MyrmexStatus,
   filesChanged: Schema.Int,

@@ -78,7 +78,7 @@ We are extending T3 Code's existing 4-part architecture without breaking its cor
   - 3 Team Members: **Noor** (Staff Engineer), **Sarah** (Product Manager), **Alex** (Platform Reviewer).
   - 1 Realistic Spec: _"Edge Gateway Rate-Limiting & Token Bucket Migration"_ with structured requirements and PM/Eng comments.
   - 5 Tasks across columns (including an active Myrmex working on `feat/token-bucket-middleware`, a task paused in `Mid-Work Review` with a PM question, and a completed task).
-- [ ] **2.3 Wire WebSocket Broadcast & Agent Hooks:**
+- [x] **2.3 Wire WebSocket Broadcast & Agent Hooks:** (2026-10-27 iteration 4: real launch via ThreadMessageIntake.launchThread in an isolated worktree when a project + usable provider exist, steer via interrupt + sendToThread, provider run/checkpoint events mapped onto task telemetry; graceful demo fallback when no project/provider is available)
   - Connect `colony.*` RPC handlers in `apps/server`'s WebSocket router.
   - Broadcast `colony:updated` to all connected WebSocket clients on every mutation.
   - Implement `colony.summonMyrmex`: when triggered on a Task, call T3 Code's internal session starter with the task title + description + spec context as the initial prompt, bind the returned `sessionId` and worktree branch to the Task, and move the Task to `active`.

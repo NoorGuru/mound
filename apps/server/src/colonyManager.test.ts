@@ -1,0 +1,56 @@
+import { assert, describe, it } from "@effect/vitest";
+
+import { ColonyManager } from "./colonyManager.ts";
+
+const actor = {
+  id: "noor",
+  name: "Noor",
+  role: "eng" as const,
+  avatarColor: "#E57C23",
+  status: "online" as const,
+};
+
+describe("ColonyManager provider binding", () => {
+  it("binds a launched thread and project to the summoned task", () => {
+    const colony = new ColonyManager();
+    colony.summonMyrmex("MND-103", "Claude Code", actor);
+    const bound = colony.bindThread("MND-103", "thread-123", "project-9");
+    const task = bound.tasks.find((entry) => entry.id === "MND-103");
+    assert.strictEqual(task?.myrmex?.threadId, "thread-123");
+    assert.strictEqual(task?.myrmex?.sessionId, "thread-123");
+    assert.strictEqual(task?.myrmex?.projectId, "project-9");
+  });
+
+  it("maps provider run events onto myrmex telemetry", () => {
+    const colony = new ColonyManager();
+    colony.summonMyrmex("MND-103", "Claude Code", actor);
+    colony.bindThread("MND-103", "thread-123", "project-9");
+
+    const running = colony.applyProviderEvent("thread-123", { kind: "run", status: "running" });
+    assert.strictEqual(
+      running.tasks.find((entry) => entry.id === "MND-103")?.myrmex?.status,
+      "coding",
+    );
+
+    const checkpoint = colony.applyProviderEvent("thread-123", {
+      kind: "checkpoint",
+      filesChanged: 3,
+    });
+    assert.strictEqual(
+      checkpoint.tasks.find((entry) => entry.id === "MND-103")?.myrmex?.filesChanged,
+      3,
+    );
+
+    const done = colony.applyProviderEvent("thread-123", { kind: "run", status: "completed" });
+    const doneTask = done.tasks.find((entry) => entry.id === "MND-103");
+    assert.strictEqual(doneTask?.myrmex?.status, "waiting_review");
+    assert.strictEqual(doneTask?.column, "review");
+  });
+
+  it("ignores provider events for unbound threads", () => {
+    const colony = new ColonyManager();
+    const before = colony.getState();
+    const after = colony.applyProviderEvent("thread-unknown", { kind: "run", status: "running" });
+    assert.strictEqual(after, before);
+  });
+});
